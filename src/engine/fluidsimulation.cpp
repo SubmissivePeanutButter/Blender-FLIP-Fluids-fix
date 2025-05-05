@@ -3458,7 +3458,7 @@ FluidSimulationFrameStats FluidSimulation::getFrameStatsData() {
     return _outputData.frameData;
 }
 
-void FluidSimulation::getMarkerParticlePositionDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticlePositionDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3474,7 +3474,7 @@ void FluidSimulation::getMarkerParticlePositionDataRange(int start_idx, int end_
     }
 }
 
-void FluidSimulation::getMarkerParticleVelocityDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleVelocityDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3490,7 +3490,7 @@ void FluidSimulation::getMarkerParticleVelocityDataRange(int start_idx, int end_
     }
 }
 
-void FluidSimulation::getMarkerParticleAffineXDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleAffineXDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3506,7 +3506,7 @@ void FluidSimulation::getMarkerParticleAffineXDataRange(int start_idx, int end_i
     }
 }
 
-void FluidSimulation::getMarkerParticleAffineYDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleAffineYDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3522,7 +3522,7 @@ void FluidSimulation::getMarkerParticleAffineYDataRange(int start_idx, int end_i
     }
 }
 
-void FluidSimulation::getMarkerParticleAffineZDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleAffineZDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3538,7 +3538,7 @@ void FluidSimulation::getMarkerParticleAffineZDataRange(int start_idx, int end_i
     }
 }
 
-void FluidSimulation::getMarkerParticleAgeDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleAgeDataRange(int start_idx, int end_idx, float *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3554,7 +3554,7 @@ void FluidSimulation::getMarkerParticleAgeDataRange(int start_idx, int end_idx, 
     }
 }
 
-void FluidSimulation::getMarkerParticleLifetimeDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleLifetimeDataRange(int start_idx, int end_idx, float *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3570,7 +3570,7 @@ void FluidSimulation::getMarkerParticleLifetimeDataRange(int start_idx, int end_
     }
 }
 
-void FluidSimulation::getMarkerParticleColorDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleColorDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3586,7 +3586,7 @@ void FluidSimulation::getMarkerParticleColorDataRange(int start_idx, int end_idx
     }
 }
 
-void FluidSimulation::getMarkerParticleSourceIDDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleSourceIDDataRange(int start_idx, int end_idx, int *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3602,7 +3602,7 @@ void FluidSimulation::getMarkerParticleSourceIDDataRange(int start_idx, int end_
     }
 }
 
-void FluidSimulation::getMarkerParticleUIDDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleUIDDataRange(int start_idx, int end_idx, int *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3618,7 +3618,7 @@ void FluidSimulation::getMarkerParticleUIDDataRange(int start_idx, int end_idx, 
     }
 }
 
-void FluidSimulation::getMarkerParticleViscosityDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleViscosityDataRange(int start_idx, int end_idx, float *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3634,7 +3634,7 @@ void FluidSimulation::getMarkerParticleViscosityDataRange(int start_idx, int end
     }
 }
 
-void FluidSimulation::getMarkerParticleIDDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getMarkerParticleIDDataRange(int start_idx, int end_idx, uint16_t *data) {
     if (start_idx < 0 || end_idx > (int)_markerParticles.size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
         msg += "range: [" + _toString(start_idx) + ", " + _toString(end_idx) + "]\n";
@@ -3650,7 +3650,7 @@ void FluidSimulation::getMarkerParticleIDDataRange(int start_idx, int end_idx, c
     }
 }
 
-void FluidSimulation::getDiffuseParticlePositionDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getDiffuseParticlePositionDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     ParticleSystem *dps = _diffuseMaterial.getDiffuseParticles();
     if (start_idx < 0 || end_idx > (int)dps->size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
@@ -3667,7 +3667,7 @@ void FluidSimulation::getDiffuseParticlePositionDataRange(int start_idx, int end
     }
 }
 
-void FluidSimulation::getDiffuseParticleVelocityDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getDiffuseParticleVelocityDataRange(int start_idx, int end_idx, vmath::vec3 *data) {
     ParticleSystem *dps = _diffuseMaterial.getDiffuseParticles();
     if (start_idx < 0 || end_idx > (int)dps->size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
@@ -3684,7 +3684,7 @@ void FluidSimulation::getDiffuseParticleVelocityDataRange(int start_idx, int end
     }
 }
 
-void FluidSimulation::getDiffuseParticleLifetimeDataRange(int start_idx, int end_idx, char *data) {
+void FluidSimulation::getDiffuseParticleLifetimeDataRange(int start_idx, int end_idx, float *data) {
     ParticleSystem *dps = _diffuseMaterial.getDiffuseParticles();
     if (start_idx < 0 || end_idx > (int)dps->size() || start_idx > end_idx) {
         std::string msg = "Error: invalid range.\n";
@@ -3733,7 +3733,7 @@ void FluidSimulation::getDiffuseParticleIdDataRange(int start_idx, int end_idx, 
     }
 }
 
-void FluidSimulation::getMarkerParticlePositionData(char *data) {
+void FluidSimulation::getMarkerParticlePositionData(vmath::vec3 *data) {
     std::vector<vmath::vec3> *values;
     _markerParticles.getAttributeValues("POSITION", values);
 
@@ -3743,7 +3743,7 @@ void FluidSimulation::getMarkerParticlePositionData(char *data) {
     }
 }
 
-void FluidSimulation::getMarkerParticleVelocityData(char *data) {
+void FluidSimulation::getMarkerParticleVelocityData(vmath::vec3 *data) {
     std::vector<vmath::vec3> *values;
     _markerParticles.getAttributeValues("POSITION", values);
 
@@ -3753,7 +3753,7 @@ void FluidSimulation::getMarkerParticleVelocityData(char *data) {
     }
 }
 
-void FluidSimulation::getDiffuseParticlePositionData(char *data) {
+void FluidSimulation::getDiffuseParticlePositionData(vmath::vec3 *data) {
     std::vector<vmath::vec3> *particlePositions;
     ParticleSystem* dps = _diffuseMaterial.getDiffuseParticles();
     dps->getAttributeValues("POSITION", particlePositions);
@@ -3764,7 +3764,7 @@ void FluidSimulation::getDiffuseParticlePositionData(char *data) {
     }
 }
 
-void FluidSimulation::getDiffuseParticleVelocityData(char *data) {
+void FluidSimulation::getDiffuseParticleVelocityData(vmath::vec3 *data) {
     std::vector<vmath::vec3> *particleVelocities;
     ParticleSystem* dps = _diffuseMaterial.getDiffuseParticles();
     dps->getAttributeValues("VELOCITY", particleVelocities);
@@ -3775,7 +3775,7 @@ void FluidSimulation::getDiffuseParticleVelocityData(char *data) {
     }
 }
 
-void FluidSimulation::getDiffuseParticleLifetimeData(char *data) {
+void FluidSimulation::getDiffuseParticleLifetimeData(float *data) {
     std::vector<float> *particleLifetimes;
     ParticleSystem* dps = _diffuseMaterial.getDiffuseParticles();
     dps->getAttributeValues("LIFETIME", particleLifetimes);
@@ -9856,14 +9856,19 @@ void FluidSimulation::_outputSimulationData() {
 void FluidSimulation::_stepFluid(double dt) {
     srand(_currentFrame + _currentFrameTimeStepNumber);
     if (!_isSkippedFrame) {
-        _launchUpdateObstacleObjectsThread(dt);
-        _joinUpdateObstacleObjectsThread();
-        _launchUpdateLiquidLevelSetThread();
-        _joinUpdateLiquidLevelSetThread();
-        _launchAdvectVelocityFieldThread();
-        _joinAdvectVelocityFieldThread();
 
-        if (_isSurfaceTensionEnabled or _isSheetSeedingEnabled or _isDiffuseMaterialOutputEnabled) {
+        //_launchUpdateObstacleObjectsThread(dt);
+        _updateObstacleObjects(dt);
+       
+        //_launchUpdateLiquidLevelSetThread();
+        _updateLiquidLevelSet();
+        
+        //_launchAdvectVelocityFieldThread();
+        _advectVelocityField();
+
+        
+        //_joinAdvectVelocityFieldThread();
+        if (_isSurfaceTensionEnabled || _isSheetSeedingEnabled || _isDiffuseMaterialOutputEnabled) {
             _launchCalculateFluidCurvatureGridThread();
         }
 
@@ -9887,6 +9892,9 @@ void FluidSimulation::_stepFluid(double dt) {
         if (_isSheetSeedingEnabled) {
             _joinCalculateFluidCurvatureGridThread();
         }
+        //_joinUpdateObstacleObjectsThread();
+        //_joinUpdateLiquidLevelSetThread();
+        
 
         _updateSheetSeeding();
         _updateMarkerParticleVelocities();
