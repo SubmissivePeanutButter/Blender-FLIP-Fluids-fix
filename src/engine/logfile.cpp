@@ -30,23 +30,25 @@ SOFTWARE.
 
 LogFile::LogFile() : _startTimeString(getTime()),
                      _separator("------------------------------------------------------------") {
+    _mutex = new std::mutex;
 }
 
 LogFile::~LogFile() {
+    delete _mutex;
 }
 
 void LogFile::setSeparator(std::string sep) {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _separator = sep;
 }
 
 void LogFile::enableConsole() {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _isWritingToConsole = true;
 }
 
 void LogFile::disableConsole() {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _isWritingToConsole = false;
 }
 
@@ -59,38 +61,39 @@ std::string LogFile::getString() {
 }
 
 void LogFile::clear() {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream.str(std::string());
 }
 
 void LogFile::newline() {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream << std::endl;
     _print("\n");
 }
 
 void LogFile::separator() {
-    std::unique_lock<std::mutex> lock(_mutex);
+    
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream << _separator << std::endl;
     _print(_separator + "\n");
 }
 
 void LogFile::timestamp() {
+    std::unique_lock<std::mutex> lock(*_mutex);
     std::string time = getTime();
-    std::unique_lock<std::mutex> lock(_mutex);
     _stream << time << std::endl;
     _print(time + "\n");
 }
 
 void LogFile::logString(const std::string& str) {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream << str << std::endl;
     _print(str + "\n");
 }
 
 void LogFile::log(std::ostream &s) {
     std::ostringstream &out = dynamic_cast<std::ostringstream&>(s);
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream << out.str();
     _print(out.str());
 }
@@ -119,7 +122,7 @@ void LogFile::log(std::string str, std::string value, int indentLevel) {
     }
 
     out << str << value << std::endl;
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _stream << out.str();
     _print(out.str());
 }
@@ -137,7 +140,7 @@ std::string LogFile::getTime() {
 }
 
 void LogFile::print(std::string str) {
-    std::unique_lock<std::mutex> lock(_mutex);
+    std::unique_lock<std::mutex> lock(*_mutex);
     _print(str);
 }
 
@@ -149,10 +152,10 @@ void LogFile::_print(std::string str) {
 }
 
 std::vector<char> LogFile::flush() {
-    _mutex.lock();
+    _mutex->lock();
     std::string str = _stream.str();
     std::vector<char> data(str.begin(), str.end()); 
-    _mutex.unlock();
+    _mutex->unlock();
     clear();
     return data;
 }

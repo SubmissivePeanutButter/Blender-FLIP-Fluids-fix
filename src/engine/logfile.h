@@ -29,8 +29,9 @@ SOFTWARE.
 #include <string>
 #include <vector>
 #include <sstream>
+#include <mutex>
 
-#include "threadutils.h"
+//#include "threadutils.h"
 
 class LogFile
 {
@@ -78,7 +79,7 @@ private:
     std::ostringstream _stream;
     bool _isWritingToConsole = true;
 
-    std::mutex _mutex;
+    std::mutex* _mutex;
 };
 
 #endif

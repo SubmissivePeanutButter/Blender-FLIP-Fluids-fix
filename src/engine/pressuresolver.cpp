@@ -27,7 +27,7 @@ SOFTWARE.
 // Not currently supported for Apple systems
 // Support to be added later
 #if !__APPLE__
-    #include <omp.h>
+//    #include <omp.h>
 #endif
 
 #include "pcgsolver/pcgsolver.h"
@@ -902,7 +902,8 @@ bool PressureSolver::_solveLinearSystem(SparseMatrixd &matrix, std::vector<doubl
 bool PressureSolver::_solveLinearSystemJacobi(SparseMatrixd &matrix, std::vector<double> &b, 
                                               std::vector<double> &x, int *iterations, double *error) {
     // Not currently supported for Apple systems
-    #if !__APPLE__
+    //#if !__APPLE__
+    #if 0
 
         std::vector<double> next_x = x;
 

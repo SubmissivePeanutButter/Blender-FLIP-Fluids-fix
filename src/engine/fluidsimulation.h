@@ -152,58 +152,58 @@ struct FluidSimulationFrameStats {
 
 struct FluidSimulationMarkerParticleData {
     int size = 0;
-    char *positions;
-    char *velocities;
+    vmath::vec3 *positions;
+    vmath::vec3 *velocities;
 };
 
 struct FluidSimulationMarkerParticleAffineData {
     int size = 0;
-    char *affineX;
-    char *affineY;
-    char *affineZ;
+    vmath::vec3 *affineX;
+    vmath::vec3 *affineY;
+    vmath::vec3 *affineZ;
 };
 
 struct FluidSimulationMarkerParticleAgeData {
     int size = 0;
-    char *age;
+    float *age;
 };
 
 struct FluidSimulationMarkerParticleLifetimeData {
     int size = 0;
-    char *lifetime;
+    float *lifetime;
 };
 
 struct FluidSimulationMarkerParticleColorData {
     int size = 0;
-    char *color;
+    vmath::vec3 *color;
 };
 
 struct FluidSimulationMarkerParticleSourceIDData {
     int size = 0;
-    char *sourceid;
+    int *sourceid;
 };
 
 struct FluidSimulationMarkerParticleUIDData {
     int size = 0;
-    char *uid;
+    int *uid;
 };
 
 struct FluidSimulationMarkerParticleViscosityData {
     int size = 0;
-    char *viscosity;
+    float *viscosity;
 };
 
 struct FluidSimulationMarkerParticleIDData {
     int size = 0;
-    char *id;
+    uint16_t *id;
 };
 
 struct FluidSimulationDiffuseParticleData {
     int size = 0;
-    char *positions;
-    char *velocities;
-    char *lifetimes;
-    char *types;
+    vmath::vec3 *positions;
+    vmath::vec3 *velocities;
+    float *lifetimes;
+    DiffuseParticleType *types;
     char *ids;
 };
 
@@ -1498,29 +1498,29 @@ public:
     std::vector<char>* getLogFileData();
     FluidSimulationFrameStats getFrameStatsData();
 
-    void getMarkerParticlePositionDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleVelocityDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleAffineXDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleAffineYDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleAffineZDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleAgeDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleLifetimeDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleColorDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleSourceIDDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleUIDDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleViscosityDataRange(int start_idx, int end_idx, char *data);
-    void getMarkerParticleIDDataRange(int start_idx, int end_idx, char *data);
-    void getDiffuseParticlePositionDataRange(int start_idx, int end_idx, char *data);
-    void getDiffuseParticleVelocityDataRange(int start_idx, int end_idx, char *data);
-    void getDiffuseParticleLifetimeDataRange(int start_idx, int end_idx, char *data);
+    void getMarkerParticlePositionDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleVelocityDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleAffineXDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleAffineYDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleAffineZDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleAgeDataRange(int start_idx, int end_idx, float *data);
+    void getMarkerParticleLifetimeDataRange(int start_idx, int end_idx, float *data);
+    void getMarkerParticleColorDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getMarkerParticleSourceIDDataRange(int start_idx, int end_idx, int *data);
+    void getMarkerParticleUIDDataRange(int start_idx, int end_idx, int *data);
+    void getMarkerParticleViscosityDataRange(int start_idx, int end_idx, float *data);
+    void getMarkerParticleIDDataRange(int start_idx, int end_idx, uint16_t *data);
+    void getDiffuseParticlePositionDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getDiffuseParticleVelocityDataRange(int start_idx, int end_idx, vmath::vec3 *data);
+    void getDiffuseParticleLifetimeDataRange(int start_idx, int end_idx, float *data);
     void getDiffuseParticleTypeDataRange(int start_idx, int end_idx, char *data);
     void getDiffuseParticleIdDataRange(int start_idx, int end_idx, char *data);
 
-    void getMarkerParticlePositionData(char *data);
-    void getMarkerParticleVelocityData(char *data);
-    void getDiffuseParticlePositionData(char *data);
-    void getDiffuseParticleVelocityData(char *data);
-    void getDiffuseParticleLifetimeData(char *data);
+    void getMarkerParticlePositionData(vmath::vec3 *data);
+    void getMarkerParticleVelocityData(vmath::vec3 *data);
+    void getDiffuseParticlePositionData(vmath::vec3 *data);
+    void getDiffuseParticleVelocityData(vmath::vec3 *data);
+    void getDiffuseParticleLifetimeData(float *data);
     void getDiffuseParticleTypeData(char *data);
     void getDiffuseParticleIdData(char *data);
     unsigned int getMarkerParticlePositionDataSize();
