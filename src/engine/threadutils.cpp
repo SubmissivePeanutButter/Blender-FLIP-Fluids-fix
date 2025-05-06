@@ -52,22 +52,108 @@ void ThreadUtils::setMaxThreadCount(int n) {
 }
 
 std::vector<int> ThreadUtils::splitRangeIntoIntervals(int rangeBegin, int rangeEnd, 
-	                                                  int numIntervals) {
-    int intervalSize = floor((double)(rangeEnd - rangeBegin) / (double)numIntervals);
-    int intervalRemainder = (rangeEnd - rangeBegin) - intervalSize * numIntervals;
-    std::vector<int> intervals;
-    intervals.reserve(numIntervals + 1);
-    intervals.push_back(rangeBegin);
+													  int numIntervals) {
+	int intervalSize = floor((double)(rangeEnd - rangeBegin) / (double)numIntervals);
+	int intervalRemainder = (rangeEnd - rangeBegin) - intervalSize * numIntervals;
+	std::vector<int> intervals;
+	intervals.reserve(numIntervals + 1);
+	intervals.push_back(rangeBegin);
 
-    int intervalBegin = rangeBegin;
-    for (int i = 0; i < numIntervals; i++) {
-        int intervalEnd = intervalBegin + intervalSize;
-        if (i < intervalRemainder) {
-            intervalEnd++;
-        }
-        intervals.push_back(intervalEnd);
-        intervalBegin = intervalEnd;
-    }
+	int intervalBegin = rangeBegin;
+	for (int i = 0; i < numIntervals; i++) {
+		int intervalEnd = intervalBegin + intervalSize;
+		if (i < intervalRemainder) {
+			intervalEnd++;
+		}
+		intervals.push_back(intervalEnd);
+		intervalBegin = intervalEnd;
+	}
 
-    return intervals;
+	return intervals;
+}
+ThreadUtils::Thread_Pool_Handeler::Thread_Pool_Handeler() {
+	Number_Of_Threads = std::thread::hardware_concurrency();
+	Flip_To_Notify_Threads_Flag.clear();
+	Thread_Finished_Flag_Array = new std::atomic_flag[Number_Of_Threads];
+	Thread_Task = Dummy_Function;
+	Task_Data = nullptr;
+	Thread_Array = static_cast<std::thread*>( operator new(sizeof(std::thread) * Number_Of_Threads));
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Finished_Flag_Array[i].clear();
+		new (&Thread_Array[i])std::thread(Thread_Manager_Function, this, i);
+	}
+}
+ThreadUtils::Thread_Pool_Handeler::~Thread_Pool_Handeler() {
+	//wait for threads finish
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Finished_Flag_Array[i].wait(false);
+	}
+	//notify threads to close
+	Exit_Flag.test_and_set();
+	Exit_Flag.notify_all();
+
+	//flip the flip flag
+	if (Flip_To_Notify_Threads_Flag.test()) {
+		Flip_To_Notify_Threads_Flag.clear();
+	}
+	else {
+		Flip_To_Notify_Threads_Flag.test_and_set();
+	}
+	Flip_To_Notify_Threads_Flag.notify_all();
+
+	//join threads
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Array[i].join();
+	}
+
+	//delete Thread_Array
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Array[i].~thread();
+	}
+	delete Thread_Array;
+
+	//delete Thread_Finished_Flag_Array
+	delete[] Thread_Finished_Flag_Array;
+}
+void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void()> Task, void* Data) {
+	//wait for threads finish
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Finished_Flag_Array[i].wait(false);
+		Thread_Finished_Flag_Array[i].clear();
+	}
+	//update task
+	Thread_Task = Task;
+
+	//update task data
+	Task_Data = Data;
+
+	//flip the flip flag
+	if (Flip_To_Notify_Threads_Flag.test()) {
+		Flip_To_Notify_Threads_Flag.clear();
+	}
+	else {
+		Flip_To_Notify_Threads_Flag.test_and_set();
+	}
+	Flip_To_Notify_Threads_Flag.notify_all();
+}
+void ThreadUtils::Thread_Pool_Handeler::Dummy_Function() {
+	return;
+}
+void ThreadUtils::Thread_Pool_Handeler::Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i) {
+	bool Flag_Proxy = Thread_Pool_Handler->Flip_To_Notify_Threads_Flag.test();
+	do {
+		//execute task
+		Thread_Pool_Handler->Thread_Task();
+
+		//set flag when task is finished
+		Thread_Pool_Handler->Thread_Finished_Flag_Array[i].test_and_set();
+		Thread_Pool_Handler->Thread_Finished_Flag_Array[i].notify_all();
+
+		//wait for the flip flag
+		Thread_Pool_Handler->Flip_To_Notify_Threads_Flag.wait(Flag_Proxy);
+		Flag_Proxy = !Flag_Proxy;
+
+		//exit whed done
+	} while (!Thread_Pool_Handler->Exit_Flag.test());
+	return;
 }

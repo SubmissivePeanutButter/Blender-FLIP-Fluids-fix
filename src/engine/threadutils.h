@@ -34,6 +34,7 @@ SOFTWARE.
     #include <thread>
     #include <mutex>
     #include <condition_variable>
+    #include <atomic>
 #endif
 
 #include <vector>
@@ -50,6 +51,21 @@ namespace ThreadUtils {
     extern std::vector<int> splitRangeIntoIntervals(int rangeBegin, 
                                                     int rangeEnd, 
                                                     int numIntervals);
+    class Thread_Pool_Handeler {
+    public:
+        Thread_Pool_Handeler();
+        ~Thread_Pool_Handeler();
+        void Run_Function(std::function<void()> Task, void* Data = nullptr);
+    private:
+        unsigned int Number_Of_Threads;
+        std::atomic_flag Flip_To_Notify_Threads_Flag;
+        std::atomic_flag Exit_Flag;
+        std::atomic_flag* Thread_Finished_Flag_Array;
+        std::thread* Thread_Array;
+        void* Task_Data;
+        std::function<void()> Thread_Task;
+        static void Dummy_Function();
+        static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i);
+    };
 }
-
 #endif
