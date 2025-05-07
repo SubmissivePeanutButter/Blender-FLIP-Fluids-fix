@@ -1546,7 +1546,7 @@ public:
     void loadDiffuseParticleData(FluidSimulationDiffuseParticleData data);
 
 private:   
-
+    ThreadUtils::Thread_Pool_Handeler Thread_Pool;
     enum class VelocityTransferMethod : char { 
         FLIP = 0x00, 
         APIC = 0x01
@@ -1827,6 +1827,9 @@ private:
     void _updateObstacles(double dt);
     void _updateNearSolidGrid();
     void _initializeNearSolidGridThread(int startidx, int endidx);
+
+    static void initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data);
+
     void _resolveSolidLevelSetUpdateCollisionsThread(int startidx, int endidx);
     void _resolveSolidLevelSetUpdateCollisions();
     void _updateObstacleObjects(double dt);

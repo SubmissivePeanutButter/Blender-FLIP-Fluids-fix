@@ -55,7 +55,7 @@ namespace ThreadUtils {
     public:
         Thread_Pool_Handeler();
         ~Thread_Pool_Handeler();
-        void Run_Function(std::function<void()> Task, void* Data = nullptr);
+        void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data)> Task, int Range_Start = 0, int Range_End = 0, void* Data = nullptr);
     private:
         unsigned int Number_Of_Threads;
         std::atomic_flag Flip_To_Notify_Threads_Flag;
@@ -63,8 +63,10 @@ namespace ThreadUtils {
         std::atomic_flag* Thread_Finished_Flag_Array;
         std::thread* Thread_Array;
         void* Task_Data;
-        std::function<void()> Thread_Task;
-        static void Dummy_Function();
+        int Task_Range_Start;
+        int Task_Range_End;
+        std::function<void(int Start_Index, int End_Index, void* Data)> Thread_Task;
+        static void Dummy_Function(int Start_Index = 0, int End_Index = 0, void* Data = nullptr);
         static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i);
     };
 }

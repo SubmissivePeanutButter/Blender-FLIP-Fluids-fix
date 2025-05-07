@@ -5333,6 +5333,16 @@ void FluidSimulation::_initializeNearSolidGridThread(int startidx, int endidx) {
         }
     }
 }
+void FluidSimulation::initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data) {
+    float maxd = ((FluidSimulation*)Data)->_solidLevelSetExactBand * ((FluidSimulation*)Data)->_dx;
+    int gridfactor = ((FluidSimulation*)Data)->_nearSolidGridCellSizeFactor;
+    for (int idx = Start_Index; idx < End_Index; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, ((FluidSimulation*)Data)->_isize, ((FluidSimulation*)Data)->_jsize);
+        if (std::abs(((FluidSimulation*)Data)->_solidSDF(g)) < maxd) {
+            ((FluidSimulation*)Data)->_nearSolidGrid.set(g.i / gridfactor, g.j / gridfactor, g.k / gridfactor, true);
+        }
+    }
+}
 
 void FluidSimulation::_updateNearSolidGrid() {
     _nearSolidGridCellSize = _nearSolidGridCellSizeFactor * _dx;
@@ -5347,20 +5357,21 @@ void FluidSimulation::_updateNearSolidGrid() {
     } else {
         _nearSolidGrid.fill(false);
     }
-
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //test 1
+   // size_t numCPU = ThreadUtils::getMaxThreadCount();
     size_t gridsize = _isize * _jsize * _ksize;
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_initializeNearSolidGridThread, this,
-                                 intervals[i], intervals[i + 1]);
-    }
+    Thread_Pool.Run_Function(initializeNearSolidGridThreaded, 0, gridsize, this);
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_initializeNearSolidGridThread, this,
+    //                             intervals[i], intervals[i + 1]);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
 
     int numlayers = (int)std::ceil((float)_CFLConditionNumber / (float)_nearSolidGridCellSizeFactor);
     for (int i = 0; i < numlayers; i++) {
