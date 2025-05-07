@@ -229,7 +229,7 @@ struct Temp_Struct{
     Array3d<bool>* Temp_grid;
     Array3d<bool>* Temp_tempgrid;
 };
-void featherGrid6(Array3d<bool> *grid, int numthreads, ThreadUtils::Thread_Pool_Handeler * Pool) {
+void featherGrid6(Array3d<bool> *grid, int numthreads) {
     Array3d<bool> tempgrid = *grid;
 
     int gridsize = grid->width * grid->height * grid->depth;
@@ -240,7 +240,7 @@ void featherGrid6(Array3d<bool> *grid, int numthreads, ThreadUtils::Thread_Pool_
         grid,
         &tempgrid
     };
-    Pool->Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp);
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&_featherGrid6Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
     //}

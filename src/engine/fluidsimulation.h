@@ -1546,7 +1546,6 @@ public:
     void loadDiffuseParticleData(FluidSimulationDiffuseParticleData data);
 
 private:   
-    ThreadUtils::Thread_Pool_Handeler Thread_Pool;
     enum class VelocityTransferMethod : char { 
         FLIP = 0x00, 
         APIC = 0x01

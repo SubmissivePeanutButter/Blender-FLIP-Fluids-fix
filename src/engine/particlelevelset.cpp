@@ -194,7 +194,7 @@ void ParticleLevelSet::postProcessSignedDistanceField(MeshLevelSet &solidPhi) {
 }
 
 void ParticleLevelSet::calculateCurvatureGrid(Array3d<float> &surfacePhi, 
-                                              Array3d<float> &kgrid, ThreadUtils::Thread_Pool_Handeler* Pool) {
+                                              Array3d<float> &kgrid) {
 
     FLUIDSIM_ASSERT(surfacePhi.width == _isize && 
                     surfacePhi.height == _jsize && 
@@ -230,7 +230,7 @@ void ParticleLevelSet::calculateCurvatureGrid(Array3d<float> &surfacePhi,
             }
         }
     }
-    GridUtils::featherGrid6(&validBlocks, ThreadUtils::getMaxThreadCount(), Pool);
+    GridUtils::featherGrid6(&validBlocks, ThreadUtils::getMaxThreadCount());
 
     int numValid = 0;
     for (int k = 0; k < _ksize; k++) {

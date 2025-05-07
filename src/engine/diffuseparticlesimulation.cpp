@@ -1522,31 +1522,46 @@ DiffuseParticleSimulation::DiffuseParticleAttributes DiffuseParticleSimulation::
     return atts;
 }
 
-void DiffuseParticleSimulation::_trilinearInterpolate(std::vector<vmath::vec3> &input, 
-                                                      MACVelocityField *vfield, 
-                                                      std::vector<vmath::vec3> &output) {
+struct Temp_Struct_1 {
+    std::vector<vmath::vec3>* Temp_input;
+    MACVelocityField* Temp_vfield;
+    std::vector<vmath::vec3>* Temp_output;
+};
+void DiffuseParticleSimulation::_trilinearInterpolate(std::vector<vmath::vec3> &input,
+    MACVelocityField * vfield,
+    std::vector<vmath::vec3> &output) {
     FLUIDSIM_ASSERT(output.size() == input.size());
+    Temp_Struct_1 Temp{
+        &input,
+        vfield,
+        &output,
+    };
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, input.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, input.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_trilinearInterpolateThread, this,
+    //        intervals[i], intervals[i + 1], &input, vfield, &output);
+    //}
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, input.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, input.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_trilinearInterpolateThread, this,
-                                 intervals[i], intervals[i + 1], &input, vfield, &output);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _trilinearInterpolateThreaded(0, input.size(), &Temp);
 }
 
-void DiffuseParticleSimulation::_trilinearInterpolateThread(int startidx, int endidx, 
-                                                            std::vector<vmath::vec3> *input, 
-                                                            MACVelocityField *vfield, 
-                                                            std::vector<vmath::vec3> *output) {
+void DiffuseParticleSimulation::_trilinearInterpolateThread(int startidx, int endidx,
+    std::vector<vmath::vec3> *input,
+    MACVelocityField * vfield,
+    std::vector<vmath::vec3> *output) {
     for (int i = startidx; i < endidx; i++) {
         (*output)[i] = vfield->evaluateVelocityAtPositionLinear(input->at(i));
+    }
+}
+void DiffuseParticleSimulation::_trilinearInterpolateThreaded(int startidx, int endidx, void* Data) {
+    for (int i = startidx; i < endidx; i++) {
+        (*(static_cast<Temp_Struct_1*>(Data)->Temp_output))[i] = static_cast<Temp_Struct_1*>(Data)->Temp_vfield->evaluateVelocityAtPositionLinear(static_cast<Temp_Struct_1*>(Data)->Temp_input->at(i));
     }
 }
 

@@ -68,7 +68,7 @@ public:
     void calculateSignedDistanceField(ParticleSystem &particles, 
                                       double radius);
     void postProcessSignedDistanceField(MeshLevelSet &solidPhi);
-    void calculateCurvatureGrid(Array3d<float> &surfacePhi, Array3d<float> &kgrid, ThreadUtils::Thread_Pool_Handeler* Pool);
+    void calculateCurvatureGrid(Array3d<float> &surfacePhi, Array3d<float> &kgrid);
 
     Array3d<float>* getPhiGrid();
     void getGridDimensions(int *i, int *j, int *k);

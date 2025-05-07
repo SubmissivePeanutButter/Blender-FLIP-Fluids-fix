@@ -138,6 +138,11 @@ private:
         float radius = 0.0f;
     };
 
+    struct Temp_Struct_2 {
+        Array3d<bool>* activeBlocks;
+        Direction dir;
+        VelocityAdvector* Pointer;
+    };
     void _initializeParameters(VelocityAdvectorParameters params);
     void _advectGrid(Direction dir);
     vmath::vec3 _getDirectionOffset(Direction dir);
@@ -145,6 +150,8 @@ private:
     void _initializeActiveBlocksThread(int startidx, int endidx,
                                        Array3d<bool> *activeBlocks,
                                        Direction dir);
+    static void _initializeActiveBlocksThreaded(int startidx, int endidx,
+       void* Data);
     void _computeGridCountData(BlockArray3d<ScalarData> &blockphi, 
                                ParticleGridCountData &countdata,
                                Direction dir);

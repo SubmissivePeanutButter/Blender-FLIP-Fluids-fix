@@ -69,5 +69,6 @@ namespace ThreadUtils {
         static void Dummy_Function(int Start_Index = 0, int End_Index = 0, void* Data = nullptr);
         static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i);
     };
+    extern Thread_Pool_Handeler Thread_Pool;
 }
 #endif

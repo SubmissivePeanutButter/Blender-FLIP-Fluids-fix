@@ -328,6 +328,7 @@ private:
     void _trilinearInterpolateThread(int startidx, int endidx, 
                                      std::vector<vmath::vec3> *input, MACVelocityField *vfield, 
                                      std::vector<vmath::vec3> *output);
+    void _trilinearInterpolateThreaded(int startidx, int endidx, void* Data);
     void _getDiffuseParticleEmitters(std::vector<DiffuseParticleEmitter> &normalEmitters,
                                      std::vector<DiffuseParticleEmitter> &dustEmitters);
     void _sortMarkerParticlePositions(std::vector<vmath::vec3> &surface, 

@@ -34,7 +34,7 @@ namespace GridUtils {
     void _initializeStatusGridThread(int startidx, int endidx, Array3d<bool> *valid, Array3d<char> *status);
     void _findExtrapolationCells(int startidx, int endidx, Array3d<char> *status, std::vector<GridIndex> *cells);
 
-    void featherGrid6(Array3d<bool> *grid, int numthreads, ThreadUtils::Thread_Pool_Handeler * Pool);
+    void featherGrid6(Array3d<bool> *grid, int numthreads);
     void _featherGrid6Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx);
     void _featherGrid6Threaded(int startidx, int endidx, void* Data);
 

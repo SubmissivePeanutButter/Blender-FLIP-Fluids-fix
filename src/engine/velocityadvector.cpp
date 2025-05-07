@@ -219,6 +219,12 @@ void VelocityAdvector::_initializeBlockGrid(BlockArray3d<ScalarData> &blockphi, 
     for (int i = 0; i < numthreads; i++) {
         threads[i].join();
     }
+    //Temp_Struct_2 Temp{
+    //    &activeBlocks,
+    //    dir,
+    //    this
+    //};
+    //ThreadUtils::Thread_Pool.Run_Function(VelocityAdvector::_initializeActiveBlocksThreaded, 0, _points.size(), &Temp);
 
     GridUtils::featherGrid26(&activeBlocks, numthreads);
 
@@ -248,6 +254,16 @@ void VelocityAdvector::_initializeActiveBlocksThread(int startidx, int endidx,
             activeBlocks->set(g, true);
         }
     }
+}
+void VelocityAdvector::_initializeActiveBlocksThreaded(int startidx, int endidx, void* Data) {
+    //vmath::vec3 offset = (static_cast<Temp_Struct_2*>(Data))->Pointer->_getDirectionOffset(static_cast<Temp_Struct_2*>(Data)->dir);
+    //for (int i = startidx; i < endidx; i++) {
+    //    vmath::vec3 p = (static_cast<Temp_Struct_2*>(Data))->Pointer->_points[i] - offset;
+     //   GridIndex g = Grid3d::positionToGridIndex(p, static_cast<Temp_Struct_2*>(Data)->Pointer->_chunkdx);
+      //  if ((static_cast<Temp_Struct_2*>(Data))->activeBlocks->isIndexInRange(g)) {
+       //     (static_cast<Temp_Struct_2*>(Data))->activeBlocks->set(g, true);
+        //}
+    //}
 }
 
 void VelocityAdvector::_computeGridCountData(BlockArray3d<ScalarData> &blockphi, 

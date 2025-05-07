@@ -30,7 +30,7 @@ SOFTWARE.
 
 int ThreadUtils::_maxThreadCount = 0;
 bool ThreadUtils::_isMaxThreadCountInitialized = false;
-
+ThreadUtils::Thread_Pool_Handeler ThreadUtils::Thread_Pool;
 void ThreadUtils::_initializeMaxThreadCount() {
 	if (_isMaxThreadCountInitialized) {
 		return;

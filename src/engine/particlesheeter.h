@@ -52,7 +52,7 @@ public:
     ~ParticleSheeter();
 
     void generateSheetParticles(ParticleSheeterParameters params,
-                                std::vector<vmath::vec3> &generatedParticles, ThreadUtils::Thread_Pool_Handeler* Thread_Pool);
+                                std::vector<vmath::vec3> &generatedParticles);
     
 private:
 
@@ -78,7 +78,7 @@ private:
                                              Array3d<unsigned char> *countGrid, 
                                              std::vector<vmath::vec3> *result);
     void _getSheetCells(std::vector<vmath::vec3> &sheetParticles, 
-                        Array3d<bool> &sheetCells, ThreadUtils::Thread_Pool_Handeler* Thread_Pool);
+                        Array3d<bool> &sheetCells);
     void _getSheetCellsThread(int startidx, int endidx,
                               std::vector<vmath::vec3> *sheetParticles, 
                               Array3d<bool> *sheetCells);

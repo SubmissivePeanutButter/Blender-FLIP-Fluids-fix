@@ -38,7 +38,7 @@ ParticleSheeter::~ParticleSheeter() {
 }
 
 void ParticleSheeter::generateSheetParticles(ParticleSheeterParameters params,
-                                             std::vector<vmath::vec3> &generatedParticles, ThreadUtils::Thread_Pool_Handeler * Thread_Pool) {
+                                             std::vector<vmath::vec3> &generatedParticles) {
     _initializeParameters(params);
     
     Array3d<unsigned char> countGrid(_isize, _jsize, _ksize, (char)0);
@@ -48,7 +48,7 @@ void ParticleSheeter::generateSheetParticles(ParticleSheeterParameters params,
     _identifySheetParticlesPhase1(countGrid, sheetParticles);
 
     Array3d<bool> sheetCells(_isize, _jsize, _ksize, false);
-    _getSheetCells(sheetParticles, sheetCells, Thread_Pool);
+    _getSheetCells(sheetParticles, sheetCells);
 
     sheetParticles.clear();
     countGrid.fill(0);
@@ -175,7 +175,7 @@ void ParticleSheeter::_identifySheetParticlesPhase1Thread(int startidx, int endi
 }
 
 void ParticleSheeter::_getSheetCells(std::vector<vmath::vec3> &sheetParticles, 
-                                     Array3d<bool> &sheetCells, ThreadUtils::Thread_Pool_Handeler* Thread_Pool) {
+                                     Array3d<bool> &sheetCells) {
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, sheetParticles.size());
@@ -190,8 +190,8 @@ void ParticleSheeter::_getSheetCells(std::vector<vmath::vec3> &sheetParticles,
         threads[i].join();
     }
 
-    GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount(), Thread_Pool);
-    GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount(), Thread_Pool);
+    GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
+    GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
 
     int buffer = 3;
     for (int k = 0; k < sheetCells.depth; k++) {
