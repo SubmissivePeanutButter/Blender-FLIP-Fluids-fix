@@ -37,6 +37,7 @@ SOFTWARE.
 #include "blockarray3d.h"
 #include "boundedbuffer.h"
 #include "particlesystem.h"
+#include "threadutils.h"
 
 class MeshLevelSet;
 class ScalarField;
@@ -67,7 +68,7 @@ public:
     void calculateSignedDistanceField(ParticleSystem &particles, 
                                       double radius);
     void postProcessSignedDistanceField(MeshLevelSet &solidPhi);
-    void calculateCurvatureGrid(Array3d<float> &surfacePhi, Array3d<float> &kgrid);
+    void calculateCurvatureGrid(Array3d<float> &surfacePhi, Array3d<float> &kgrid, ThreadUtils::Thread_Pool_Handeler* Pool);
 
     Array3d<float>* getPhiGrid();
     void getGridDimensions(int *i, int *j, int *k);

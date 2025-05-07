@@ -225,22 +225,31 @@ void _extrapolateCellsThread(int startidx, int endidx,
     }
 }
 */
-
-void featherGrid6(Array3d<bool> *grid, int numthreads) {
+struct Temp_Struct{
+    Array3d<bool>* Temp_grid;
+    Array3d<bool>* Temp_tempgrid;
+};
+void featherGrid6(Array3d<bool> *grid, int numthreads, ThreadUtils::Thread_Pool_Handeler * Pool) {
     Array3d<bool> tempgrid = *grid;
 
     int gridsize = grid->width * grid->height * grid->depth;
     numthreads = (int)fmin(numthreads, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&_featherGrid6Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    Temp_Struct Temp{
+        grid,
+        &tempgrid
+    };
+    Pool->Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&_featherGrid6Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
 }
+
 
 void _featherGrid6Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx) {
     int isize = grid->width;
@@ -256,6 +265,25 @@ void _featherGrid6Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx
         for (int nidx = 0; nidx < 6; nidx++) {
             if (grid->isIndexInRange(nbs[nidx])) {
                 grid->set(nbs[nidx], true);
+            }
+        }
+    }
+}
+void _featherGrid6Threaded(int startidx, int endidx, void* Data) {
+    
+    int isize = ((Temp_Struct*)Data)->Temp_grid->width;
+    int jsize = ((Temp_Struct*)Data)->Temp_grid->height;
+    GridIndex nbs[6];
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+        if (!((Temp_Struct*)Data)->Temp_tempgrid->get(g)) {
+            continue;
+        }
+
+        Grid3d::getNeighbourGridIndices6(g, nbs);
+        for (int nidx = 0; nidx < 6; nidx++) {
+            if (((Temp_Struct*)Data)->Temp_grid->isIndexInRange(nbs[nidx])) {
+                ((Temp_Struct*)Data)->Temp_grid->set(nbs[nidx], true);
             }
         }
     }

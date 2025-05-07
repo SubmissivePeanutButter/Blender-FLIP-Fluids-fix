@@ -5375,7 +5375,7 @@ void FluidSimulation::_updateNearSolidGrid() {
 
     int numlayers = (int)std::ceil((float)_CFLConditionNumber / (float)_nearSolidGridCellSizeFactor);
     for (int i = 0; i < numlayers; i++) {
-        GridUtils::featherGrid6(&_nearSolidGrid, ThreadUtils::getMaxThreadCount());
+        GridUtils::featherGrid6(&_nearSolidGrid, ThreadUtils::getMaxThreadCount(), &Thread_Pool);
     }
 }
 
@@ -5619,7 +5619,7 @@ void FluidSimulation::_calculateFluidCurvatureGridThread() {
             _fluidCurvatureGrid = Array3d<float>(_isize, _jsize, _ksize, 0.0f);
         }
 
-        _liquidSDF.calculateCurvatureGrid(_fluidSurfaceLevelSet, _fluidCurvatureGrid);
+        _liquidSDF.calculateCurvatureGrid(_fluidSurfaceLevelSet, _fluidCurvatureGrid, &Thread_Pool);
 
     }
 
@@ -6447,7 +6447,7 @@ void FluidSimulation::_updateSheetSeeding() {
 
         std::vector<vmath::vec3> sheetParticles;
         ParticleSheeter sheeter;
-        sheeter.generateSheetParticles(params, sheetParticles);
+        sheeter.generateSheetParticles(params, sheetParticles, &Thread_Pool);
 
         std::vector<vmath::vec3> *positions, *velocities;
         _markerParticles.getAttributeValues("POSITION", positions);
