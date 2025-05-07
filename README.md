@@ -1,7 +1,8 @@
-this is a fork of flip fluids that i mess around
+# this is a fork of flip fluids that i mess around with
 Featruing
-    A couple of hacky speedups
-    removing openmp
-    c++ 20
-        beter thread syncronisation
-    other things
+1. A couple of hacky speedups
+2. removing openmp
+3. c++ 20\
+   - beter thread syncronisation
+   - thread pooling
+4. other things
