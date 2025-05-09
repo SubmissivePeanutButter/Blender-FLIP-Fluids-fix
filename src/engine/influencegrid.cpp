@@ -94,7 +94,10 @@ void InfluenceGrid::_updateDecay(double dt) {
         }
     }   
 }
-
+struct Temp_Struct_3 {
+    double dt;
+    InfluenceGrid* Pointer;
+};
 void InfluenceGrid::_updateSpread(double dt) {
     bool isInfluenceUniform = true;
     float constvalue = _influence(0, 0, 0);
@@ -122,18 +125,24 @@ void InfluenceGrid::_updateSpread(double dt) {
     }
 
     size_t gridsize = _isize * _jsize * _ksize;
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&InfluenceGrid::_updateSpreadThread, this,
-                                 intervals[i], intervals[i + 1], dt);
-    }
+    //size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&InfluenceGrid::_updateSpreadThread, this,
+    //                             intervals[i], intervals[i + 1], dt);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    Temp_Struct_3 Temp{
+        dt,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_updateSpreadThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 
     for (int k = 0; k < _influence.depth; k++) {
         for (int j = 0; j < _influence.height; j++) {
@@ -160,6 +169,25 @@ void InfluenceGrid::_updateSpreadThread(int startidx, int endidx, double dt) {
             }
         }
         _tempinfluence.set(g, currentvalue + (sum / (float)n));
+    }
+}
+void InfluenceGrid::_updateSpreadThreaded(int startidx, int endidx, void* Data) {
+    Temp_Struct_3* Temp = static_cast<Temp_Struct_3*>(Data);
+    GridIndex nbs[6];
+    float rate = Temp->Pointer->_spreadFactor * Temp->Pointer->_decayrate * Temp->dt;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+        Grid3d::getNeighbourGridIndices6(g, nbs);
+        float currentvalue = Temp->Pointer->_influence(g);
+        float sum = 0.0f;
+        int n = 0;
+        for (int nidx = 0; nidx < 6; nidx++) {
+            if (Temp->Pointer->_influence.isIndexInRange(nbs[nidx])) {
+                sum += rate * (Temp->Pointer->_influence(nbs[nidx]) - currentvalue);
+                n++;
+            }
+        }
+        Temp->Pointer->_tempinfluence.set(g, currentvalue + (sum / (float)n));
     }
 }
 
