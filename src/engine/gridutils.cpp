@@ -241,6 +241,7 @@ void featherGrid6(Array3d<bool> *grid, int numthreads) {
         &tempgrid
     };
     ThreadUtils::Thread_Pool.Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&_featherGrid6Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
     //}

@@ -5361,6 +5361,7 @@ void FluidSimulation::_updateNearSolidGrid() {
    // size_t numCPU = ThreadUtils::getMaxThreadCount();
     size_t gridsize = _isize * _jsize * _ksize;
     ThreadUtils::Thread_Pool.Run_Function(initializeNearSolidGridThreaded, 0, gridsize, this);
+    ThreadUtils::Thread_Pool.Sync();
     //int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);

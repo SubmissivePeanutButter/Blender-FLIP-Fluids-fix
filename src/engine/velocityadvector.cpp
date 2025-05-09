@@ -207,24 +207,26 @@ void VelocityAdvector::_initializeBlockGrid(BlockArray3d<ScalarData> &blockphi, 
 
     Array3d<bool> activeBlocks(dims.i, dims.j, dims.k, false);
 
+    
+
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, _points.size());
     std::vector<std::thread> threads(numthreads);
     std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _points.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&VelocityAdvector::_initializeActiveBlocksThread, this,
-                                 intervals[i], intervals[i + 1], &activeBlocks, dir);
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&VelocityAdvector::_initializeActiveBlocksThread, this,
+    //                             intervals[i], intervals[i + 1], &activeBlocks, dir);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
-    //Temp_Struct_2 Temp{
-    //    &activeBlocks,
-    //    dir,
-    //    this
-    //};
-    //ThreadUtils::Thread_Pool.Run_Function(VelocityAdvector::_initializeActiveBlocksThreaded, 0, _points.size(), &Temp);
+    //for (int i = 0; i < numthreads; i++) {
+    //   threads[i].join();
+    //}
+    Temp_Struct_2 Temp;
+    Temp.activeBlocks = &activeBlocks;
+    Temp.dir = dir;
+    Temp.Pointer = this;
+    ThreadUtils::Thread_Pool.Run_Function(VelocityAdvector::_initializeActiveBlocksThreaded, 0, _points.size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 
     GridUtils::featherGrid26(&activeBlocks, numthreads);
 
@@ -256,14 +258,16 @@ void VelocityAdvector::_initializeActiveBlocksThread(int startidx, int endidx,
     }
 }
 void VelocityAdvector::_initializeActiveBlocksThreaded(int startidx, int endidx, void* Data) {
-    //vmath::vec3 offset = (static_cast<Temp_Struct_2*>(Data))->Pointer->_getDirectionOffset(static_cast<Temp_Struct_2*>(Data)->dir);
-    //for (int i = startidx; i < endidx; i++) {
-    //    vmath::vec3 p = (static_cast<Temp_Struct_2*>(Data))->Pointer->_points[i] - offset;
-     //   GridIndex g = Grid3d::positionToGridIndex(p, static_cast<Temp_Struct_2*>(Data)->Pointer->_chunkdx);
-      //  if ((static_cast<Temp_Struct_2*>(Data))->activeBlocks->isIndexInRange(g)) {
-       //     (static_cast<Temp_Struct_2*>(Data))->activeBlocks->set(g, true);
-        //}
-    //}
+    std::cout << startidx << " " << endidx << "\n";
+    Temp_Struct_2* Temp = static_cast<Temp_Struct_2*>(Data);
+    vmath::vec3 offset = Temp->Pointer->_getDirectionOffset((Temp->dir));
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 p = Temp->Pointer->_points[i] - offset;
+        GridIndex g = Grid3d::positionToGridIndex(p, Temp->Pointer->_chunkdx);
+        if (Temp->activeBlocks->isIndexInRange(g)) {
+            Temp->activeBlocks->set(g, true);
+        }
+    }
 }
 
 void VelocityAdvector::_computeGridCountData(BlockArray3d<ScalarData> &blockphi, 

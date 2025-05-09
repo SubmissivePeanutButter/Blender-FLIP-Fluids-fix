@@ -56,6 +56,7 @@ namespace ThreadUtils {
         Thread_Pool_Handeler();
         ~Thread_Pool_Handeler();
         void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data)> Task, int Range_Start = 0, int Range_End = 0, void* Data = nullptr);
+        void Sync();
     private:
         unsigned int Number_Of_Threads;
         std::atomic_flag Flip_To_Notify_Threads_Flag;

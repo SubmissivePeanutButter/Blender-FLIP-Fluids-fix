@@ -28,6 +28,8 @@ SOFTWARE.
 
 #include "fluidsimassert.h"
 
+#include <iostream>
+
 int ThreadUtils::_maxThreadCount = 0;
 bool ThreadUtils::_isMaxThreadCountInitialized = false;
 ThreadUtils::Thread_Pool_Handeler ThreadUtils::Thread_Pool;
@@ -123,11 +125,16 @@ void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Star
 		Thread_Finished_Flag_Array[i].wait(false);
 		Thread_Finished_Flag_Array[i].clear();
 	}
+	
 	//update task
 	Thread_Task = Task;
 
 	//update task data
 	Task_Data = Data;
+
+	//update task range
+	Task_Range_Start = Range_Start;
+	Task_Range_End = Range_End;
 
 	//flip the flip flag
 	if (Flip_To_Notify_Threads_Flag.test()) {
@@ -141,21 +148,40 @@ void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Star
 void ThreadUtils::Thread_Pool_Handeler::Dummy_Function(int Start_Index, int End_Index, void* Data) {
 	return;
 }
+void ThreadUtils::Thread_Pool_Handeler::Sync() {
+	//wait for threads finish
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Finished_Flag_Array[i].wait(false);
+		Thread_Finished_Flag_Array[i].test_and_set();
+	}
+	return;
+}
+	
 void ThreadUtils::Thread_Pool_Handeler::Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i) {
 	bool Flag_Proxy = Thread_Pool_Handler->Flip_To_Notify_Threads_Flag.test();
-	int Total_Tasks_To_Run = Thread_Pool_Handler->Task_Range_End - Thread_Pool_Handler->Task_Range_Start;
-	int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads);
-	int Task_Difference = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads);
-	int Thread_Start_Index = Number_Of_Tasks_Per_Thread * (Thread_Pool_Handler->Number_Of_Threads - 1);
-	int Thread_End_Index = (Thread_Start_Index + Number_Of_Tasks_Per_Thread) - 1;
-
-	if ( i == Thread_Pool_Handler->Number_Of_Threads) {
-		Thread_End_Index++;
-		Thread_End_Index += Task_Difference;
-	}
+	//i has range from 0 to number of threads -1
 	do {
-		//execute task
-		Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data);
+		//calculate task range
+		int Total_Tasks_To_Run = Thread_Pool_Handler->Task_Range_End - Thread_Pool_Handler->Task_Range_Start;
+		int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads);
+		int Task_Difference = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads);
+	
+		int Thread_Start_Index = Thread_Pool_Handler->Task_Range_Start + (Number_Of_Tasks_Per_Thread * i);
+		int Thread_End_Index = Thread_Start_Index + Number_Of_Tasks_Per_Thread - 1;
+
+		if ( i == (Thread_Pool_Handler->Number_Of_Threads - 1)) {
+			Thread_End_Index += Task_Difference;
+			Thread_End_Index++;
+		}
+		//debug
+		//if (i == (Thread_Pool_Handler->Number_Of_Threads - 1)) {
+		//	std::cout << "Total_Tasks_To_Run = " << Total_Tasks_To_Run << " Number_Of_Tasks_Per_Thread = " << Number_Of_Tasks_Per_Thread << " Task_Difference = " << Task_Difference << " Thread_Start_Index = " << Thread_Start_Index << " Thread_End_Index = " << Thread_End_Index << "\n";
+		//}
+		//handle having too few tasks per thread
+		if((Number_Of_Tasks_Per_Thread > 0) || (i == (Thread_Pool_Handler->Number_Of_Threads - 1))){
+			//execute task
+			Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data);
+		}
 
 		//set flag when task is finished
 		Thread_Pool_Handler->Thread_Finished_Flag_Array[i].test_and_set();
