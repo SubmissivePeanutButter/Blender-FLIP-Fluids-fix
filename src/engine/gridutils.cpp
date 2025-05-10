@@ -229,6 +229,10 @@ struct Temp_Struct{
     Array3d<bool>* Temp_grid;
     Array3d<bool>* Temp_tempgrid;
 };
+struct Temp_Struct_7 {
+    Array3d<bool>* grid;
+    Array3d<bool>* valid;
+};
 void featherGrid6(Array3d<bool> *grid, int numthreads) {
     Array3d<bool> tempgrid = *grid;
 
@@ -292,18 +296,23 @@ void _featherGrid6Threaded(int startidx, int endidx, void* Data) {
 
 void featherGrid26(Array3d<bool> *grid, int numthreads) {
     Array3d<bool> tempgrid = *grid;
-
+    Temp_Struct_7 Temp{
+        grid,
+        &tempgrid
+    };
     size_t gridsize = grid->width * grid->height * grid->depth;
-    numthreads = (int)std::min((size_t)numthreads, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&_featherGrid26Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
-    }
+    //numthreads = (int)std::min((size_t)numthreads, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&_featherGrid26Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    ThreadUtils::Thread_Pool.Run_Function(_featherGrid26Threaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void _featherGrid26Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx) {
@@ -320,6 +329,25 @@ void _featherGrid26Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startid
         for (int nidx = 0; nidx < 26; nidx++) {
             if (grid->isIndexInRange(nbs[nidx])) {
                 grid->set(nbs[nidx], true);
+            }
+        }
+    }
+}
+void _featherGrid26Threaded(int startidx, int endidx, void* Data) {
+    Temp_Struct_7* Temp = static_cast<Temp_Struct_7*>(Data);
+    int isize = Temp->grid->width;
+    int jsize = Temp->grid->height;
+    GridIndex nbs[26];
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+        if (!(Temp->valid->get(g))) {
+            continue;
+        }
+
+        Grid3d::getNeighbourGridIndices26(g, nbs);
+        for (int nidx = 0; nidx < 26; nidx++) {
+            if (Temp->grid->isIndexInRange(nbs[nidx])) {
+                Temp->grid->set(nbs[nidx], true);
             }
         }
     }

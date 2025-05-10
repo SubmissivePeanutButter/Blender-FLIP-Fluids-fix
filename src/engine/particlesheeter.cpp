@@ -173,23 +173,33 @@ void ParticleSheeter::_identifySheetParticlesPhase1Thread(int startidx, int endi
         result->push_back(p);
     }
 }
-
+struct Temp_Struct_9 {
+    std::vector<vmath::vec3>* sheetParticles;
+    Array3d<bool>* sheetCells;
+    ParticleSheeter* Pointer;
+};
 void ParticleSheeter::_getSheetCells(std::vector<vmath::vec3> &sheetParticles, 
                                      Array3d<bool> &sheetCells) {
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, sheetParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, sheetParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&ParticleSheeter::_getSheetCellsThread, this,
-                                 intervals[i], intervals[i + 1], &sheetParticles, &sheetCells);
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, sheetParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&ParticleSheeter::_getSheetCellsThread, this,
+    //                             intervals[i], intervals[i + 1], &sheetParticles, &sheetCells);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
-
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    Temp_Struct_9 Temp{
+        &sheetParticles,
+        &sheetCells,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_getSheetCellsThreaded, 0, sheetParticles.size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
     GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
     GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
 
@@ -214,6 +224,14 @@ void ParticleSheeter::_getSheetCellsThread(int startidx, int endidx,
     for (int i = startidx; i < endidx; i++) {
         GridIndex g = Grid3d::positionToGridIndex(sheetParticles->at(i), _dx);
         sheetCells->set(g, true);
+    }
+}
+
+void ParticleSheeter::_getSheetCellsThreaded(int startidx, int endidx, void* Data) {
+    Temp_Struct_9* Temp = static_cast<Temp_Struct_9*>(Data);
+    for (int i = startidx; i < endidx; i++) {
+        GridIndex g = Grid3d::positionToGridIndex(Temp->sheetParticles->at(i), Temp->Pointer->_dx);
+        Temp->sheetCells->set(g, true);
     }
 }
 
@@ -427,18 +445,25 @@ void ParticleSheeter::_initializeSortDataValidCells(std::vector<vmath::vec3> &pa
             sortData.isize, sortData.jsize, sortData.ksize, false
             );
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, particles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, particles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&ParticleSheeter::_initializeSortDataValidCellsThread, this,
-                                 intervals[i], intervals[i + 1], &particles, &sortData);
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, particles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, particles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&ParticleSheeter::_initializeSortDataValidCellsThread, this,
+    //                             intervals[i], intervals[i + 1], &particles, &sortData);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    Temp_Struct_10 Temp{
+        &particles,
+        &sortData,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_initializeSortDataValidCellsThreaded, 0, particles.size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 
     int numValidCells = 0;
     for (int k = 0; k < sortData.ksize; k++) {
@@ -460,6 +485,13 @@ void ParticleSheeter::_initializeSortDataValidCellsThread(int startidx, int endi
     for (int i = startidx; i < endidx; i++) {
         GridIndex g = Grid3d::positionToGridIndex(particles->at(i), sortData->dx);
         sortData->validCells.set(g, true);
+    }
+}
+void ParticleSheeter::_initializeSortDataValidCellsThreaded(int startidx, int endidx, void* Data) {
+    Temp_Struct_10* Temp = static_cast<Temp_Struct_10*>(Data);
+    for (int i = startidx; i < endidx; i++) {
+        GridIndex g = Grid3d::positionToGridIndex(Temp->particles->at(i), Temp->sortData->dx);
+        Temp->sortData->validCells.set(g, true);
     }
 }
 

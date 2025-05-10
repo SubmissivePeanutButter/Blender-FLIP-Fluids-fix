@@ -40,6 +40,7 @@ namespace GridUtils {
 
     void featherGrid26(Array3d<bool> *grid, int numthreads);
     void _featherGrid26Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx);
+    void _featherGrid26Threaded(int startidx, int endidx, void* Data);
 
     template <class T>
     void _extrapolateCellsThread(int startidx, int endidx, 
