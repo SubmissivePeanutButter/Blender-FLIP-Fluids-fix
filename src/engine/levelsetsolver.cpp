@@ -231,7 +231,7 @@ void LevelSetSolver::_stepSolverThreadEno(int startidx, int endidx,
         tempPtr->set(g, val);
     }
 }
-void LevelSetSolver::_stepSolverThreadedEno(int startidx, int endidx, void* Data) {
+void LevelSetSolver::_stepSolverThreadedEno(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_4* Temp = static_cast<Temp_Struct_4*>(Data);
     std::array<float, 2> derx, dery, derz;
     for (int idx = startidx; idx < endidx; idx++) {
@@ -403,7 +403,7 @@ void LevelSetSolver::_stepSolverThreadUpwind(int startidx, int endidx,
         tempPtr->set(g, val);
     }
 }
-void LevelSetSolver::_stepSolverThreadedUpwind(int startidx, int endidx,void* Data) {
+void LevelSetSolver::_stepSolverThreadedUpwind(int startidx, int endidx,void* Data, int Thread_Number) {
     Temp_Struct_4* Temp = static_cast<Temp_Struct_4*>(Data);
     std::array<float, 2> derx, dery, derz;
     for (int idx = startidx; idx < endidx; idx++) {

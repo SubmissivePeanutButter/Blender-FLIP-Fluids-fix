@@ -88,7 +88,7 @@ private:
                            float dx,
                            float dtau,
                            std::vector<GridIndex> *solverCells);
-    static void _stepSolverThreadedEno(int startidx, int endidx, void* Data);
+    static void _stepSolverThreadedEno(int startidx, int endidx, void* Data, int Thread_Number);
     void _getDerivativesEno(Array3d<float> *grid,
                         int i, int j, int k, float dx, 
                         std::array<float, 2> *derx,
@@ -102,7 +102,7 @@ private:
                              float dx,
                              float dtau,
                              std::vector<GridIndex> *solverCells);
-    static void _stepSolverThreadedUpwind(int startidx, int endidx, void* Data);
+    static void _stepSolverThreadedUpwind(int startidx, int endidx, void* Data, int Thread_Number);
     void _getDerivativesUpwind(Array3d<float> *grid,
                                int i, int j, int k, float dx, 
                                std::array<float, 2> *derx,

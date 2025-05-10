@@ -309,6 +309,25 @@ void PressureSolver::_computeBordersAirGridThread(int startidx, int endidx,
         }
     }
 }
+struct Temp_Struct_11 {
+    Array3d<char>* blockstatus;
+    PressureSolver* Pointer;
+};
+struct Temp_Struct_12 {
+    Array3d<char>* blockstatus;
+    Array3d<char>* cellstatus;
+    PressureSolver* Pointer;
+};
+struct Temp_Struct_13 {
+    Array3d<char>* cellstatus;
+    std::vector<std::vector<GridIndex>>* threadResults;
+    PressureSolver* Pointer;
+};
+struct Temp_Struct_14 {
+    std::vector<GridIndex>* cells;
+    Array3d<char>* cellstatus;
+    PressureSolver* Pointer;
+};
 
 void PressureSolver::_initializeSurfaceTensionClusterData() {
     if (!_isSurfaceTensionEnabled) {
@@ -328,15 +347,21 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
     size_t gridsize = bisize * bjsize * bksize;
     size_t numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)std::min(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&PressureSolver::_initializeBlockStatusGridThread, this,
-                                 intervals[i], intervals[i + 1], &blockstatus);
-    }
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&PressureSolver::_initializeBlockStatusGridThread, this,
+    //                             intervals[i], intervals[i + 1], &blockstatus);
+    //}
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    Temp_Struct_11 Temp_1{
+        &blockstatus,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_initializeBlockStatusGridThreaded, 0, gridsize, &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 
     /*
     char UNSET       = 0x00;
@@ -350,31 +375,47 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
 
     gridsize = _isize * _jsize * _ksize;
     numthreads = (int)std::min(numCPU, gridsize);
-    threads = std::vector<std::thread>(numthreads);
-    intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&PressureSolver::_initializeCellStatusGridThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &blockstatus, &_surfaceTensionClusterStatus);
-    }
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //threads = std::vector<std::thread>(numthreads);
+    //intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&PressureSolver::_initializeCellStatusGridThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &blockstatus, &_surfaceTensionClusterStatus);
+    //}
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    
+    Temp_Struct_12 Temp_2{
+        &blockstatus,
+        &_surfaceTensionClusterStatus,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_initializeCellStatusGridThreaded, 0, gridsize, &Temp_2);
+    ThreadUtils::Thread_Pool.Sync();
 
     gridsize = _isize * _jsize * _ksize;
     numthreads = (int)std::min(numCPU, gridsize);
-    threads = std::vector<std::thread>(numthreads);
-    intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //threads = std::vector<std::thread>(numthreads);
+    //intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     std::vector<std::vector<GridIndex> > threadResults(numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&PressureSolver::_findSurfaceCellsThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &_surfaceTensionClusterStatus, &(threadResults[i]));
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&PressureSolver::_findSurfaceCellsThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &_surfaceTensionClusterStatus, &(threadResults[i]));
+    //}
+
+    Temp_Struct_13 Temp_3{
+        &_surfaceTensionClusterStatus,
+        &threadResults,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_findSurfaceCellsThreaded, 0, gridsize, &Temp_3);
+    ThreadUtils::Thread_Pool.Sync();
 
     int cellcount = 0;
     for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
+    //    threads[i].join();
         cellcount += threadResults[i].size();
     }
 
@@ -385,16 +426,23 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
     }
 
     numthreads = (int)fmin(numCPU, surfaceCells.size());
-    threads = std::vector<std::thread>(numthreads);
-    intervals = ThreadUtils::splitRangeIntoIntervals(0, surfaceCells.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&PressureSolver::_calculateSurfaceCellStatusThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &surfaceCells, &_surfaceTensionClusterStatus);
-    }
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //threads = std::vector<std::thread>(numthreads);
+    //intervals = ThreadUtils::splitRangeIntoIntervals(0, surfaceCells.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&PressureSolver::_calculateSurfaceCellStatusThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &surfaceCells, &_surfaceTensionClusterStatus);
+    //}
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    Temp_Struct_14 Temp_4{
+        &surfaceCells,
+        &_surfaceTensionClusterStatus,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_calculateSurfaceCellStatusThreaded, 0, surfaceCells.size(), &Temp_4);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void PressureSolver::_initializeBlockStatusGridThread(int startidx, int endidx,
@@ -435,6 +483,45 @@ void PressureSolver::_initializeBlockStatusGridThread(int startidx, int endidx,
         }
     }
 }
+void PressureSolver::_initializeBlockStatusGridThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    Temp_Struct_11* Temp = static_cast<Temp_Struct_11*>(Data);
+    Array3d<char>* blockstatus = Temp->blockstatus;
+    char HAS_INSIDE = 0x01;
+    char HAS_OUTSIDE = 0x02;
+
+    GridIndex startg = Grid3d::getUnflattenedIndex(startidx, blockstatus->width, blockstatus->height);
+    GridIndex endg = Grid3d::getUnflattenedIndex(endidx - 1, blockstatus->width, blockstatus->height);
+    startg.i *= Temp->Pointer->_blockwidth;
+    startg.j *= Temp->Pointer->_blockwidth;
+    startg.k *= Temp->Pointer->_blockwidth;
+    endg.i = endg.i * Temp->Pointer->_blockwidth + 3;
+    endg.j = endg.j * Temp->Pointer->_blockwidth + 3;
+    endg.k = endg.k * Temp->Pointer->_blockwidth + 3;
+
+    int cellstartidx = Grid3d::getFlatIndex(startg, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+    int cellendidx = Grid3d::getFlatIndex(endg, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+
+    for (int idx = cellstartidx; idx <= cellendidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+        int bi = g.i / Temp->Pointer->_blockwidth;
+        int bj = g.j / Temp->Pointer->_blockwidth;
+        int bk = g.k / Temp->Pointer->_blockwidth;
+        if (!blockstatus->isIndexInRange(bi, bj, bk)) {
+            continue;
+        }
+
+        int flatidx = Grid3d::getFlatIndex(bi, bj, bk, blockstatus->width, blockstatus->height);
+        if (flatidx < startidx || flatidx >= endidx) {
+            continue;
+        }
+
+        char bstatus = blockstatus->get(bi, bj, bk);
+        char cstatus = Temp->Pointer->_liquidSDF->get(g) < 0 ? HAS_INSIDE : HAS_OUTSIDE;
+        if (!(bstatus & cstatus)) {
+            blockstatus->set(bi, bj, bk, bstatus | cstatus);
+        }
+    }
+}
 
 void PressureSolver::_initializeCellStatusGridThread(int startidx, int endidx,
                                                      Array3d<char> *blockstatus, 
@@ -464,6 +551,40 @@ void PressureSolver::_initializeCellStatusGridThread(int startidx, int endidx,
         if ((bstatus & HAS_INSIDE) && !(bstatus & HAS_OUTSIDE)) {
             cellstatus->set(g, OK_INSIDE);
         } else if (!(bstatus & HAS_INSIDE) && (bstatus & HAS_OUTSIDE)) {
+            cellstatus->set(g, OK_OUTSIDE);
+        }
+    }
+}
+void PressureSolver::_initializeCellStatusGridThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    Temp_Struct_12* Temp = static_cast<Temp_Struct_12*>(Data);
+    Array3d<char>* blockstatus = Temp->blockstatus;
+    Array3d<char>* cellstatus = Temp->cellstatus;
+    char HAS_INSIDE = 0x01;
+    char HAS_OUTSIDE = 0x02;
+
+    char OK_INSIDE = 0x01;
+    char OK_OUTSIDE = 0x02;
+    char BORDER = 0x10;
+
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+        if (Grid3d::isGridIndexOnBorder(g, Temp->Pointer->_isize, Temp->Pointer->_jsize, Temp->Pointer->_ksize)) {
+            cellstatus->set(g, BORDER);
+            continue;
+        }
+
+        int bi = g.i / Temp->Pointer->_blockwidth;
+        int bj = g.j / Temp->Pointer->_blockwidth;
+        int bk = g.k / Temp->Pointer->_blockwidth;
+        if (!blockstatus->isIndexInRange(bi, bj, bk)) {
+            continue;
+        }
+
+        char bstatus = blockstatus->get(bi, bj, bk);
+        if ((bstatus & HAS_INSIDE) && !(bstatus & HAS_OUTSIDE)) {
+            cellstatus->set(g, OK_INSIDE);
+        }
+        else if (!(bstatus & HAS_INSIDE) && (bstatus & HAS_OUTSIDE)) {
             cellstatus->set(g, OK_OUTSIDE);
         }
     }
@@ -517,6 +638,62 @@ void PressureSolver::_findSurfaceCellsThread(int startidx, int endidx,
 
         n = GridIndex(g.i, g.j, g.k - 1);
         nd = _liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+    }
+}
+void PressureSolver::_findSurfaceCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    Temp_Struct_13* Temp = static_cast<Temp_Struct_13*>(Data);
+    Array3d<char>* cellstatus = Temp->cellstatus;
+    std::vector<GridIndex>* cells = &((*(Temp->threadResults))[Thread_Number]);
+    char UNSET = 0x00;
+    
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, Temp->Pointer->_isize, Temp->Pointer->_jsize);
+        if (Grid3d::isGridIndexOnBorder(g, Temp->Pointer->_isize, Temp->Pointer->_jsize, Temp->Pointer->_ksize) || cellstatus->get(g) != UNSET) {
+            continue;
+        }
+
+        bool isfluid = Temp->Pointer->_liquidSDF->get(g) < 0.0f;
+        GridIndex n(g.i + 1, g.j, g.k);
+        float nd = Temp->Pointer->_liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+
+        n = GridIndex(g.i - 1, g.j, g.k);
+        nd = Temp->Pointer->_liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+
+        n = GridIndex(g.i, g.j + 1, g.k);
+        nd = Temp->Pointer->_liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+
+        n = GridIndex(g.i, g.j - 1, g.k);
+        nd = Temp->Pointer->_liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+
+        n = GridIndex(g.i, g.j, g.k + 1);
+        nd = Temp->Pointer->_liquidSDF->get(n);
+        if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
+            cells->push_back(g);
+            continue;
+        }
+
+        n = GridIndex(g.i, g.j, g.k - 1);
+        nd = Temp->Pointer->_liquidSDF->get(n);
         if ((isfluid ? nd >= 0.0f : nd < 0.0f)) {
             cells->push_back(g);
             continue;
@@ -594,6 +771,87 @@ void PressureSolver::_calculateSurfaceCellStatusThread(int startidx, int endidx,
         }
 
         if (result == UNSET && (int)queue.size() < _surfaceTensionClusterThreshold) {
+            result = isfluid ? BAD_INSIDE : BAD_OUTSIDE;
+        }
+
+        for (size_t qidx = 0; qidx < queue.size(); qidx++) {
+            cellstatus->set(queue[qidx], result);
+            isProcessed.set(queue[qidx], false);
+        }
+    }
+}
+void PressureSolver::_calculateSurfaceCellStatusThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    Temp_Struct_14* Temp = static_cast<Temp_Struct_14*>(Data);
+    std::vector<GridIndex>* cells = Temp->cells;
+    Array3d<char>* cellstatus = Temp->cellstatus;
+
+    char UNSET = 0x00;
+    char OK_INSIDE = 0x01;
+    char OK_OUTSIDE = 0x02;
+    char BAD_INSIDE = 0x04;
+    char BAD_OUTSIDE = 0x08;
+    char BORDER = 0x10;
+
+    Array3d<bool> isProcessed(Temp->Pointer->_isize, Temp->Pointer->_jsize, Temp->Pointer->_ksize, false);
+
+    GridIndex neighbours[6];
+    std::vector<GridIndex> queue;
+    size_t fifoidx = 0;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex seed = cells->at(idx);
+        if (cellstatus->get(seed) != UNSET) {
+            continue;
+        }
+
+        queue.clear();
+        queue.push_back(seed);
+        fifoidx = 0;
+        isProcessed.set(seed, true);
+        bool isfluid = Temp->Pointer->_liquidSDF->get(seed) < 0.0f;
+        char result = UNSET;
+        bool breaksearch = false;
+
+        while (fifoidx < queue.size()) {
+            GridIndex g = queue[fifoidx];
+            fifoidx++;
+
+            neighbours[0] = GridIndex(g.i + 1, g.j, g.k); neighbours[1] = GridIndex(g.i - 1, g.j, g.k);
+            neighbours[2] = GridIndex(g.i, g.j + 1, g.k); neighbours[3] = GridIndex(g.i, g.j - 1, g.k);
+            neighbours[4] = GridIndex(g.i, g.j, g.k + 1); neighbours[5] = GridIndex(g.i, g.j, g.k - 1);
+            for (int nidx = 0; nidx < 6; nidx++) {
+                GridIndex n = neighbours[nidx];
+                if (isProcessed(n)) {
+                    continue;
+                }
+
+                if (!(isfluid ? Temp->Pointer->_liquidSDF->get(n) < 0.0f : Temp->Pointer->_liquidSDF->get(n) >= 0.0f)) {
+                    continue;
+                }
+
+                char nstatus = cellstatus->get(n);
+                if (nstatus == BORDER) {
+                    continue;
+                }
+
+                if (nstatus != UNSET) {
+                    result = nstatus;
+                    breaksearch = true;
+                    break;
+                }
+
+                queue.push_back(n);
+                isProcessed.set(n, true);
+                if ((int)queue.size() == Temp->Pointer->_surfaceTensionClusterThreshold) {
+                    result = isfluid ? OK_INSIDE : OK_OUTSIDE;
+                }
+            }
+
+            if (breaksearch) {
+                break;
+            }
+        }
+
+        if (result == UNSET && (int)queue.size() < Temp->Pointer->_surfaceTensionClusterThreshold) {
             result = isfluid ? BAD_INSIDE : BAD_OUTSIDE;
         }
 

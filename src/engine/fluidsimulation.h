@@ -1827,7 +1827,7 @@ private:
     void _updateNearSolidGrid();
     void _initializeNearSolidGridThread(int startidx, int endidx);
 
-    static void initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data);
+    static void initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data, int Thread_Number);
 
     void _resolveSolidLevelSetUpdateCollisionsThread(int startidx, int endidx);
     void _resolveSolidLevelSetUpdateCollisions();

@@ -5333,7 +5333,7 @@ void FluidSimulation::_initializeNearSolidGridThread(int startidx, int endidx) {
         }
     }
 }
-void FluidSimulation::initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data) {
+void FluidSimulation::initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data, int Thread_Number) {
     float maxd = ((FluidSimulation*)Data)->_solidLevelSetExactBand * ((FluidSimulation*)Data)->_dx;
     int gridfactor = ((FluidSimulation*)Data)->_nearSolidGridCellSizeFactor;
     for (int idx = Start_Index; idx < End_Index; idx++) {

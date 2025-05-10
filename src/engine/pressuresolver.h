@@ -168,15 +168,19 @@ private:
     void _initializeSurfaceTensionClusterData();
     void _initializeBlockStatusGridThread(int startidx, int endidx,
                                           Array3d<char> *blockstatus);
+    static void _initializeBlockStatusGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _initializeCellStatusGridThread(int startidx, int endidx,
                                          Array3d<char> *blockstatus, 
                                          Array3d<char> *cellstatus);
+    static void _initializeCellStatusGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _findSurfaceCellsThread(int startidx, int endidx,
                                  Array3d<char> *cellstatus,
                                  std::vector<GridIndex> *cells);
+    static void _findSurfaceCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _calculateSurfaceCellStatusThread(int startidx, int endidx,
                                            std::vector<GridIndex> *cells,
                                            Array3d<char> *cellstatus);
+    static void _calculateSurfaceCellStatusThreaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     void _calculateNegativeDivergenceVector(std::vector<double> &rhs);
     void _calculateNegativeDivergenceVectorThread(int startidx, 

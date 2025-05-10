@@ -119,7 +119,7 @@ ThreadUtils::Thread_Pool_Handeler::~Thread_Pool_Handeler() {
 	//delete Thread_Finished_Flag_Array
 	delete[] Thread_Finished_Flag_Array;
 }
-void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Start_Index, int End_Index, void* Data)> Task, int Range_Start, int Range_End, void* Data) {
+void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Task, int Range_Start, int Range_End, void* Data) {
 	//wait for threads finish
 	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
 		Thread_Finished_Flag_Array[i].wait(false);
@@ -145,7 +145,7 @@ void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Star
 	}
 	Flip_To_Notify_Threads_Flag.notify_all();
 }
-void ThreadUtils::Thread_Pool_Handeler::Dummy_Function(int Start_Index, int End_Index, void* Data) {
+void ThreadUtils::Thread_Pool_Handeler::Dummy_Function(int Start_Index, int End_Index, void* Data, int Thread_Number) {
 	return;
 }
 void ThreadUtils::Thread_Pool_Handeler::Sync() {
@@ -180,7 +180,7 @@ void ThreadUtils::Thread_Pool_Handeler::Thread_Manager_Function(ThreadUtils::Thr
 		//handle having too few tasks per thread
 		if((Number_Of_Tasks_Per_Thread > 0) || (i == (Thread_Pool_Handler->Number_Of_Threads - 1))){
 			//execute task
-			Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data);
+			Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data, i);
 		}
 
 		//set flag when task is finished

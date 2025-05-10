@@ -50,7 +50,7 @@ private:
     void _updateDecay(double dt);
     void _updateSpread(double dt);
     void _updateSpreadThread(int startidx, int endidx, double dt);
-    static void _updateSpreadThreaded(int startidx, int endidx, void* Data);
+    static void _updateSpreadThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _updateInfluenceSources(MeshLevelSet *solidSDF);
 
     int _isize = 0;

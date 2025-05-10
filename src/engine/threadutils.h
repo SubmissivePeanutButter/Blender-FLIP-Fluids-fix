@@ -55,7 +55,7 @@ namespace ThreadUtils {
     public:
         Thread_Pool_Handeler();
         ~Thread_Pool_Handeler();
-        void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data)> Task, int Range_Start = 0, int Range_End = 0, void* Data = nullptr);
+        void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Task, int Range_Start = 0, int Range_End = 0, void* Data = nullptr);
         void Sync();
     private:
         unsigned int Number_Of_Threads;
@@ -66,8 +66,8 @@ namespace ThreadUtils {
         void* Task_Data;
         int Task_Range_Start;
         int Task_Range_End;
-        std::function<void(int Start_Index, int End_Index, void* Data)> Thread_Task;
-        static void Dummy_Function(int Start_Index = 0, int End_Index = 0, void* Data = nullptr);
+        std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Thread_Task;
+        static void Dummy_Function(int Start_Index = 0, int End_Index = 0, void* Data = nullptr, int Thread_Number = 0);
         static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i);
     };
     extern Thread_Pool_Handeler Thread_Pool;

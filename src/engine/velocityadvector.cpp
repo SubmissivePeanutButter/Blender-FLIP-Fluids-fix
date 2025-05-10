@@ -257,7 +257,7 @@ void VelocityAdvector::_initializeActiveBlocksThread(int startidx, int endidx,
         }
     }
 }
-void VelocityAdvector::_initializeActiveBlocksThreaded(int startidx, int endidx, void* Data) {
+void VelocityAdvector::_initializeActiveBlocksThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
     std::cout << startidx << " " << endidx << "\n";
     Temp_Struct_2* Temp = static_cast<Temp_Struct_2*>(Data);
     vmath::vec3 offset = Temp->Pointer->_getDirectionOffset((Temp->dir));

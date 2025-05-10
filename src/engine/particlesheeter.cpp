@@ -227,7 +227,7 @@ void ParticleSheeter::_getSheetCellsThread(int startidx, int endidx,
     }
 }
 
-void ParticleSheeter::_getSheetCellsThreaded(int startidx, int endidx, void* Data) {
+void ParticleSheeter::_getSheetCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_9* Temp = static_cast<Temp_Struct_9*>(Data);
     for (int i = startidx; i < endidx; i++) {
         GridIndex g = Grid3d::positionToGridIndex(Temp->sheetParticles->at(i), Temp->Pointer->_dx);
@@ -487,7 +487,7 @@ void ParticleSheeter::_initializeSortDataValidCellsThread(int startidx, int endi
         sortData->validCells.set(g, true);
     }
 }
-void ParticleSheeter::_initializeSortDataValidCellsThreaded(int startidx, int endidx, void* Data) {
+void ParticleSheeter::_initializeSortDataValidCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_10* Temp = static_cast<Temp_Struct_10*>(Data);
     for (int i = startidx; i < endidx; i++) {
         GridIndex g = Grid3d::positionToGridIndex(Temp->particles->at(i), Temp->sortData->dx);

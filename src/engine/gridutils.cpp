@@ -274,7 +274,7 @@ void _featherGrid6Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx
         }
     }
 }
-void _featherGrid6Threaded(int startidx, int endidx, void* Data) {
+void _featherGrid6Threaded(int startidx, int endidx, void* Data, int Thread_Number) {
     
     int isize = ((Temp_Struct*)Data)->Temp_grid->width;
     int jsize = ((Temp_Struct*)Data)->Temp_grid->height;
@@ -333,7 +333,7 @@ void _featherGrid26Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startid
         }
     }
 }
-void _featherGrid26Threaded(int startidx, int endidx, void* Data) {
+void _featherGrid26Threaded(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_7* Temp = static_cast<Temp_Struct_7*>(Data);
     int isize = Temp->grid->width;
     int jsize = Temp->grid->height;

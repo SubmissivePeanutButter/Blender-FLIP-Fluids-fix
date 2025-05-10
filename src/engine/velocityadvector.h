@@ -150,8 +150,7 @@ private:
     void _initializeActiveBlocksThread(int startidx, int endidx,
                                        Array3d<bool> *activeBlocks,
                                        Direction dir);
-    static void _initializeActiveBlocksThreaded(int startidx, int endidx,
-       void* Data);
+    static void _initializeActiveBlocksThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _computeGridCountData(BlockArray3d<ScalarData> &blockphi, 
                                ParticleGridCountData &countdata,
                                Direction dir);

@@ -171,7 +171,7 @@ void InfluenceGrid::_updateSpreadThread(int startidx, int endidx, double dt) {
         _tempinfluence.set(g, currentvalue + (sum / (float)n));
     }
 }
-void InfluenceGrid::_updateSpreadThreaded(int startidx, int endidx, void* Data) {
+void InfluenceGrid::_updateSpreadThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_3* Temp = static_cast<Temp_Struct_3*>(Data);
     GridIndex nbs[6];
     float rate = Temp->Pointer->_spreadFactor * Temp->Pointer->_decayrate * Temp->dt;

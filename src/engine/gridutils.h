@@ -36,11 +36,11 @@ namespace GridUtils {
 
     void featherGrid6(Array3d<bool> *grid, int numthreads);
     void _featherGrid6Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx);
-    void _featherGrid6Threaded(int startidx, int endidx, void* Data);
+    void _featherGrid6Threaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     void featherGrid26(Array3d<bool> *grid, int numthreads);
     void _featherGrid26Thread(Array3d<bool> *grid, Array3d<bool> *valid, int startidx, int endidx);
-    void _featherGrid26Threaded(int startidx, int endidx, void* Data);
+    void _featherGrid26Threaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     template <class T>
     void _extrapolateCellsThread(int startidx, int endidx, 

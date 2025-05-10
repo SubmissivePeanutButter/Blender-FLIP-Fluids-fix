@@ -82,7 +82,7 @@ private:
     void _getSheetCellsThread(int startidx, int endidx,
                               std::vector<vmath::vec3> *sheetParticles, 
                               Array3d<bool> *sheetCells);
-    static void _getSheetCellsThreaded(int startidx, int endidx, void* Data);
+    static void _getSheetCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _identifySheetParticlesPhase2(Array3d<bool> &sheetCells,
                                        Array3d<unsigned char> &countGrid, 
                                        std::vector<vmath::vec3> &sheetParticles);
@@ -113,7 +113,7 @@ private:
     void _initializeSortDataValidCellsThread(int startidx, int endidx, 
                                              std::vector<vmath::vec3> *particles, 
                                              SortedParticleData *sortData);
-    static void _initializeSortDataValidCellsThreaded(int startidx, int endidx, void* Data);
+    static void _initializeSortDataValidCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     void _selectSeedParticles(SortedParticleData &sheetCandidateParticleData, 
                               SortedParticleData &sheetParticleData,
