@@ -33,7 +33,15 @@ SOFTWARE.
 
 LevelSetSolver::LevelSetSolver() {
 }
+struct Temp_Struct_4 {
+    Array3d<float>* tempPtr;
+    Array3d<float>* outputPtr;
+    float dx;
+    float dtau;
+    std::vector<GridIndex>* solverCells;
+    LevelSetSolver* Pointer;
 
+};
 void LevelSetSolver::reinitializeEno(Array3d<float> &inputSDF, 
                                      float dx, 
                                      float maxDistance, 
@@ -55,19 +63,29 @@ void LevelSetSolver::reinitializeEno(Array3d<float> &inputSDF,
     Array3d<float> *outputPtr = &outputSDF;
 
     for (int n = 0; n < numIterations; n++) {
-        int numCPU = ThreadUtils::getMaxThreadCount();
-        int numthreads = (int)fmin(numCPU, solverCells.size());
-        std::vector<std::thread> threads(numthreads);
-        std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
-        for (int i = 0; i < numthreads; i++) {
-            threads[i] = std::thread(&LevelSetSolver::_stepSolverThreadEno, this,
-                                     intervals[i], intervals[i + 1], tempPtr, outputPtr, dx, dtau, &solverCells);
-        }
 
-        for (int i = 0; i < numthreads; i++) {
-            threads[i].join();
-        }
+        //int numCPU = ThreadUtils::getMaxThreadCount();
+        //int numthreads = (int)fmin(numCPU, solverCells.size());
+        //std::vector<std::thread> threads(numthreads);
+        //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i] = std::thread(&LevelSetSolver::_stepSolverThreadEno, this,
+        //                             intervals[i], intervals[i + 1], tempPtr, outputPtr, dx, dtau, &solverCells);
+        //}
 
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i].join();
+        //}
+        Temp_Struct_4 Temp{
+            tempPtr,
+            outputPtr,
+            dx,
+            dtau,
+            &solverCells,
+            this
+        };
+        ThreadUtils::Thread_Pool.Run_Function(_stepSolverThreadedEno, 0, solverCells.size(), &Temp);
+        ThreadUtils::Thread_Pool.Sync();
         std::swap(tempPtr, outputPtr);
     }
 
@@ -101,18 +119,28 @@ void LevelSetSolver::reinitializeUpwind(Array3d<float> &inputSDF,
 
     float lastMaxDiff = -1.0f;
     for (int n = 0; n < numIterations; n++) {
-        int numCPU = ThreadUtils::getMaxThreadCount();
-        int numthreads = (int)fmin(numCPU, solverCells.size());
-        std::vector<std::thread> threads(numthreads);
-        std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
-        for (int i = 0; i < numthreads; i++) {
-            threads[i] = std::thread(&LevelSetSolver::_stepSolverThreadUpwind, this,
-                                     intervals[i], intervals[i + 1], tempPtr, outputPtr, dx, dtau, &solverCells);
-        }
+        //int numCPU = ThreadUtils::getMaxThreadCount();
+        //int numthreads = (int)fmin(numCPU, solverCells.size());
+        //std::vector<std::thread> threads(numthreads);
+        //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i] = std::thread(&LevelSetSolver::_stepSolverThreadUpwind, this,
+        //                             intervals[i], intervals[i + 1], tempPtr, outputPtr, dx, dtau, &solverCells);
+        //}
 
-        for (int i = 0; i < numthreads; i++) {
-            threads[i].join();
-        }
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i].join();
+        //}
+        Temp_Struct_4 Temp{
+            tempPtr,
+            outputPtr,
+            dx,
+            dtau,
+            &solverCells,
+            this
+        };
+        ThreadUtils::Thread_Pool.Run_Function(LevelSetSolver::_stepSolverThreadedUpwind, 0, solverCells.size(), &Temp);
+        ThreadUtils::Thread_Pool.Sync();
 
         float maxDiff = 0;
         for (size_t cidx = 0; cidx < solverCells.size(); cidx++) {
@@ -201,6 +229,34 @@ void LevelSetSolver::_stepSolverThreadEno(int startidx, int endidx,
                            + _square(std::max(derz[1], 0.0f))) - 1.0f);
 
         tempPtr->set(g, val);
+    }
+}
+void LevelSetSolver::_stepSolverThreadedEno(int startidx, int endidx, void* Data) {
+    Temp_Struct_4* Temp = static_cast<Temp_Struct_4*>(Data);
+    std::array<float, 2> derx, dery, derz;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Temp->solverCells->at(idx);
+
+        float s = Temp->Pointer->_sign(*(Temp->outputPtr), Temp->dx, g.i, g.j, g.k);
+        Temp->Pointer->_getDerivativesEno(Temp->outputPtr, g.i, g.j, g.k, Temp->dx, &derx, &dery, &derz);
+
+        float val = Temp->outputPtr->get(g)
+            - Temp->dtau * std::max(s, 0.0f)
+            * (std::sqrt(Temp->Pointer->_square(std::max(derx[0], 0.0f))
+                + Temp->Pointer->_square(std::min(derx[1], 0.0f))
+                + Temp->Pointer->_square(std::max(dery[0], 0.0f))
+                + Temp->Pointer->_square(std::min(dery[1], 0.0f))
+                + Temp->Pointer->_square(std::max(derz[0], 0.0f))
+                + Temp->Pointer->_square(std::min(derz[1], 0.0f))) - 1.0f)
+            - Temp->dtau * std::min(s, 0.0f)
+            * (std::sqrt(Temp->Pointer->_square(std::min(derx[0], 0.0f))
+                + Temp->Pointer->_square(std::max(derx[1], 0.0f))
+                + Temp->Pointer->_square(std::min(dery[0], 0.0f))
+                + Temp->Pointer->_square(std::max(dery[1], 0.0f))
+                + Temp->Pointer->_square(std::min(derz[0], 0.0f))
+                + Temp->Pointer->_square(std::max(derz[1], 0.0f))) - 1.0f);
+
+        Temp->tempPtr->set(g, val);
     }
 }
 
@@ -345,6 +401,34 @@ void LevelSetSolver::_stepSolverThreadUpwind(int startidx, int endidx,
                            + _square(std::max(derz[1], 0.0f))) - 1.0f);
 
         tempPtr->set(g, val);
+    }
+}
+void LevelSetSolver::_stepSolverThreadedUpwind(int startidx, int endidx,void* Data) {
+    Temp_Struct_4* Temp = static_cast<Temp_Struct_4*>(Data);
+    std::array<float, 2> derx, dery, derz;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Temp->solverCells->at(idx);
+
+        float s = Temp->Pointer->_sign(*(Temp->outputPtr), Temp->dx, g.i, g.j, g.k);
+        Temp->Pointer->_getDerivativesUpwind(Temp->outputPtr, g.i, g.j, g.k, Temp->dx, &derx, &dery, &derz);
+
+        float val = Temp->outputPtr->get(g)
+            - Temp->dtau * std::max(s, 0.0f)
+            * (std::sqrt(Temp->Pointer->_square(std::max(derx[0], 0.0f))
+                + Temp->Pointer->_square(std::min(derx[1], 0.0f))
+                + Temp->Pointer->_square(std::max(dery[0], 0.0f))
+                + Temp->Pointer->_square(std::min(dery[1], 0.0f))
+                + Temp->Pointer->_square(std::max(derz[0], 0.0f))
+                + Temp->Pointer->_square(std::min(derz[1], 0.0f))) - 1.0f)
+            - Temp->dtau * std::min(s, 0.0f)
+            * (std::sqrt(Temp->Pointer->_square(std::min(derx[0], 0.0f))
+                + Temp->Pointer->_square(std::max(derx[1], 0.0f))
+                + Temp->Pointer->_square(std::min(dery[0], 0.0f))
+                + Temp->Pointer->_square(std::max(dery[1], 0.0f))
+                + Temp->Pointer->_square(std::min(derz[0], 0.0f))
+                + Temp->Pointer->_square(std::max(derz[1], 0.0f))) - 1.0f);
+
+        Temp->tempPtr->set(g, val);
     }
 }
 
