@@ -6431,12 +6431,9 @@ void FluidSimulation::_updateSheetSeeding() {
     }
 
     _logfile.logString(_logfile.getTime() + " BEGIN       Update Sheet Seeding");
-
     StopWatch t;
     t.start();
-
     if (_isFluidInSimulation()) {
-
         ParticleSheeterParameters params;
         params.particles = &_markerParticles;
         params.fluidSurfaceLevelSet = &_fluidSurfaceLevelSet;
@@ -6445,15 +6442,12 @@ void FluidSimulation::_updateSheetSeeding() {
         params.ksize = _ksize;
         params.dx = _dx;
         params.sheetFillThreshold = _sheetFillThreshold;
-
         std::vector<vmath::vec3> sheetParticles;
         ParticleSheeter sheeter;
         sheeter.generateSheetParticles(params, sheetParticles);
-
         std::vector<vmath::vec3> *positions, *velocities;
         _markerParticles.getAttributeValues("POSITION", positions);
         _markerParticles.getAttributeValues("VELOCITY", velocities);
-
         std::vector<float> *ages;
         Array3d<float> tempAgeAttributeGrid;
         Array3d<bool> tempAgeAttributeValidGrid;
@@ -6463,7 +6457,6 @@ void FluidSimulation::_updateSheetSeeding() {
             _markerParticles.getAttributeValues("AGE", ages);
             _updateMarkerParticleAgeAttributeGrid(tempAgeAttributeGrid, tempAgeAttributeValidGrid);
         }
-
         std::vector<float> *lifetimes;
         Array3d<float> tempLifetimeAttributeGrid;
         Array3d<bool> tempLifetimeAttributeValidGrid;
@@ -6473,7 +6466,6 @@ void FluidSimulation::_updateSheetSeeding() {
             _markerParticles.getAttributeValues("LIFETIME", lifetimes);
             _updateMarkerParticleLifetimeAttributeGrid(tempLifetimeAttributeGrid, tempLifetimeAttributeValidGrid);
         }
-
         std::vector<float> *viscosities;
         Array3d<float> tempViscosityAttributeGrid;
         Array3d<bool> tempViscosityAttributeValidGrid;
@@ -6483,12 +6475,10 @@ void FluidSimulation::_updateSheetSeeding() {
             _markerParticles.getAttributeValues("VISCOSITY", viscosities);
             _updateMarkerParticleViscosityAttributeGrid(tempViscosityAttributeGrid, tempViscosityAttributeValidGrid);
         }
-
         std::vector<uint16_t> *ids;
         if (_isFluidParticleIDAttributeEnabled) {
             _markerParticles.getAttributeValues("ID", ids);
         }
-
         std::vector<int> *uids;
         if (_isFluidParticleUIDAttributeEnabled) {
             _markerParticles.getAttributeValues("UID", uids);
@@ -6510,7 +6500,6 @@ void FluidSimulation::_updateSheetSeeding() {
                                                     tempColorAttributeGridB,
                                                     tempColorAttributeValidGrid);
         }
-
         int idLimit = _getFluidParticleOutputIDLimit();
         vmath::vec3 goffset(0.5f * _dx, 0.5f * _dx, 0.5f * _dx);
         float solidSheetingWidth = 2.0f * _dx;

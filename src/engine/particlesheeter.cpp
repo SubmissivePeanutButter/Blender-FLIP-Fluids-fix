@@ -433,7 +433,13 @@ void ParticleSheeter::_sortParticlesIntoGrid(std::vector<vmath::vec3> &particles
     for (size_t i = 0; i < particles.size(); i++) {
         GridIndex g = Grid3d::positionToGridIndex(particles[i], sortData.dx);
         std::pair<int, int> offset = sortData.dataOffsets(g);
-        sortData.particleData[offset.second] = particles[i];
+        //sortData.particleData[offset.second] = particles[i];
+        try {
+            sortData.particleData.at(offset.second) = particles[i];
+        }
+        catch (...) {
+            std::cout << "out of bounds access at file \"particledata.cpp\"";
+        }
         offset.second++;
         sortData.dataOffsets.set(g, offset);
     }
