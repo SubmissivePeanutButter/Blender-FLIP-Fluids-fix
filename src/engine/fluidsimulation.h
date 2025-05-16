@@ -1830,6 +1830,7 @@ private:
     static void initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data, int Thread_Number);
 
     void _resolveSolidLevelSetUpdateCollisionsThread(int startidx, int endidx);
+    static void _resolveSolidLevelSetUpdateCollisionsThread(int startidx, int endidx, void* Data, int Thread_Number);
     void _resolveSolidLevelSetUpdateCollisions();
     void _updateObstacleObjects(double dt);
     void _launchUpdateObstacleObjectsThread(double dt);
@@ -1870,6 +1871,7 @@ private:
     void _applyForceFieldGridForcesMT(ValidVelocityComponentGrid &ex, double dt, int dir);
     void _applyForceFieldGridForcesThread(int startidx, int endidx, 
                                           ValidVelocityComponentGrid *ex, double dt, int dir);
+    static void _applyForceFieldGridForcesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     /*
         Viscosity Solve
@@ -1882,6 +1884,7 @@ private:
     void _updateWeightGrid();
     void _updateWeightGridMT(int dir);
     void _updateWeightGridThread(int startidx, int endidx, int dir);
+    static void _updateWeightGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _pressureSolve(double dt);
 
     /*
@@ -1900,6 +1903,7 @@ private:
     void _constrainVelocityFieldMT(MACVelocityField &MACGrid, int dir);
     void _constrainVelocityFieldThread(int startidx, int endidx, 
                                        MACVelocityField *vfield, int dir);
+    static void _constrainVelocityFieldThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _constrainVelocityFields();
 
     /*
@@ -1914,7 +1918,9 @@ private:
     void _updateMarkerParticleVelocities();
     void _updateMarkerParticleVelocitiesThread();
     void _updatePICFLIPMarkerParticleVelocitiesThread(int startidx, int endidx);
+    static void _updatePICFLIPMarkerParticleVelocitiesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _updatePICAPICMarkerParticleVelocitiesThread(int startidx, int endidx);
+    static void _updatePICAPICMarkerParticleVelocitiesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _getIndicesAndGradientWeights(vmath::vec3 p, GridIndex indices[8], vmath::vec3 weights[8], int dir);
     void _constrainMarkerParticleVelocities();
     void _constrainMarkerParticleVelocities(MeshFluidSource *inflow);
@@ -1950,6 +1956,7 @@ private:
                                                          std::vector<vmath::vec3> *colors,
                                                          std::vector<vmath::vec3> *colorsNew,
                                                          std::vector<bool> *colorsNewValid);
+    static void _updateMarkerParticleColorAttributeMixingThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _updateMarkerParticleColorAttribute(double dt);
     void _updateMarkerParticleUIDAttribute();
     void _updateMarkerParticleAttributes(double dt);
@@ -1962,6 +1969,7 @@ private:
                                        std::vector<vmath::vec3> *positions,
                                        std::vector<vmath::vec3> *output);
     vmath::vec3 _RK3(vmath::vec3 p0, double dt);
+    static void _advanceMarkerParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     void _resolveMarkerParticleCollisions(int startidx, int endidx,
                                           std::vector<vmath::vec3> &positionsOld, 
@@ -2005,6 +2013,7 @@ private:
                                  MeshLevelSet *meshSDF,
                                  vmath::vec3 sdfoffset,
                                  std::vector<vmath::vec3> *particles);
+    static void _addNewFluidCellsThreaded(int startidx, int endidx,void* Data, int Thread_Number);
         
     void _updateMeshFluidSources();
     void _updateInflowMeshFluidSources();
@@ -2082,6 +2091,7 @@ private:
                                            std::vector<vmath::vec3> *positions,
                                            Array3d<bool> *isBoundaryCell,
                                            std::vector<MarkerParticleType> *fluidParticleTypes);
+    static void _classifyFluidParticleTypesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _generateFluidParticleDataFFP3(ParticleSystem &fluidParticles, FluidParticleDataFFP3 &dataFFP3);
     void _outputFluidParticles();
 

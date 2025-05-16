@@ -5438,13 +5438,13 @@ void FluidSimulation::_resolveSolidLevelSetUpdateCollisions() {
     int numthreads = (int)fmin(numCPU, _markerParticles.size());
     std::vector<std::thread> threads(numthreads);
     std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_resolveSolidLevelSetUpdateCollisionsThread, this,
-                                 intervals[i], intervals[i + 1]);
+    for (int i = 0; i < numthreads; i++) {//_resolveSolidLevelSetUpdateCollisionsThread is an empty function
+    //    threads[i] = std::thread(&FluidSimulation::_resolveSolidLevelSetUpdateCollisionsThread, this,
+    //                             intervals[i], intervals[i + 1]);
     }
-
+    
     for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
+    //    threads[i].join();
     }
 }
 
@@ -9280,7 +9280,12 @@ void FluidSimulation::_outputDiffuseMaterial() {
         _diffuseMaterial.getDiffuseParticleFileDataWWP(_outputData.diffuseData);
     }
 }
-
+struct _classifyFluidParticleTypesThreaded_Struct {
+    std::vector<vmath::vec3>* positions;
+    Array3d<bool>* isBoundaryCell;
+    std::vector<MarkerParticleType>* fluidParticleTypes;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_classifyFluidParticleTypes(ParticleSystem &fluidParticles, 
                                                   std::vector<MarkerParticleType> &fluidParticleTypes) {
 
@@ -9298,21 +9303,29 @@ void FluidSimulation::_classifyFluidParticleTypes(ParticleSystem &fluidParticles
         }
     }
 
-    int particlesPerThread = 100000;
-    int workerThreads = (_markerParticles.size() / particlesPerThread) + 1;
-    int numCPU = std::min(ThreadUtils::getMaxThreadCount(), workerThreads);
-    int numthreads = (int)fmin(numCPU, _markerParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_classifyFluidParticleTypesThread, this,
-                                 intervals[i], intervals[i + 1],
-                                 positions, &isBoundaryCell, &fluidParticleTypes);
-    }
+    //int particlesPerThread = 100000;
+    //int workerThreads = (_markerParticles.size() / particlesPerThread) + 1;
+    //int numCPU = std::min(ThreadUtils::getMaxThreadCount(), workerThreads);
+    //int numthreads = (int)fmin(numCPU, _markerParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_classifyFluidParticleTypesThread, this,
+    //                             intervals[i], intervals[i + 1],
+    //                             positions, &isBoundaryCell, &fluidParticleTypes);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _classifyFluidParticleTypesThreaded_Struct Temp_1{
+        positions,
+        &isBoundaryCell,
+        &fluidParticleTypes,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_classifyFluidParticleTypesThreaded, 0, _markerParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void FluidSimulation::_classifyFluidParticleTypesThread(int startidx, int endidx,
@@ -9345,6 +9358,52 @@ void FluidSimulation::_classifyFluidParticleTypesThread(int startidx, int endidx
 
         // Surface Particles
         float d = Interpolation::trilinearInterpolate(p - hdx, _dx, _fluidSurfaceLevelSet);
+        if (d >= -surfaceWidth) {
+            fluidParticleTypes->at(i) = MarkerParticleType::surface;
+            continue;
+        }
+
+        // Interior Particles
+        if (d < -surfaceWidth) {
+            fluidParticleTypes->at(i) = MarkerParticleType::interior;
+            continue;
+        }
+    }
+}
+void FluidSimulation::_classifyFluidParticleTypesThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _classifyFluidParticleTypesThreaded_Struct* Temp = static_cast<_classifyFluidParticleTypesThreaded_Struct*>(Data);
+    std::vector<vmath::vec3>* positions = Temp->positions;
+    Array3d<bool>* isBoundaryCell = Temp->isBoundaryCell;
+    std::vector<MarkerParticleType>* fluidParticleTypes = Temp->fluidParticleTypes;
+    FluidSimulation* Pointer = Temp->Pointer;
+
+    float meshingVolumeBoundaryWidth = (float)Pointer->_fluidParticleBoundaryWidth * Pointer->_dx;
+    float surfaceWidth = Pointer->_fluidParticleSurfaceWidth * Pointer->_dx;
+    vmath::vec3 hdx(0.5 * Pointer->_dx, 0.5 * Pointer->_dx, 0.5 * Pointer->_dx);
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 p = positions->at(i);
+        GridIndex g = Grid3d::positionToGridIndex(p, Pointer->_dx);
+
+        // Boundary Particles
+        bool isOnBoundary = isBoundaryCell->isIndexInRange(g) && isBoundaryCell->get(g);
+        if (Pointer->_isMeshingVolumeSet) {
+            float d = Pointer->_meshingVolumeSDF.trilinearInterpolate(p);
+            if (d >= 0 && (d <= meshingVolumeBoundaryWidth || isOnBoundary)) {
+                fluidParticleTypes->at(i) = MarkerParticleType::boundary;
+                continue;
+            }
+            else if (d < 0) {
+                fluidParticleTypes->at(i) = MarkerParticleType::unset;
+                continue;
+            }
+        }
+        else if (isOnBoundary) {
+            fluidParticleTypes->at(i) = MarkerParticleType::boundary;
+            continue;
+        }
+
+        // Surface Particles
+        float d = Interpolation::trilinearInterpolate(p - hdx, Pointer->_dx, Pointer->_fluidSurfaceLevelSet);
         if (d >= -surfaceWidth) {
             fluidParticleTypes->at(i) = MarkerParticleType::surface;
             continue;
