@@ -337,8 +337,10 @@ private:
     vmath::vec3 _jitterParticlePosition(vmath::vec3 p, double jitter);
     void _initializeMaterialGrid();
     void _initializeMaterialGridThread(int startidx, int endidx);
+    static void _initializeMaterialGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _shrinkMaterialGridFluidThread(int startidx, int endidx, 
                                         FluidMaterialGrid *mgridtemp);
+    static void _shrinkMaterialGridFluidThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _getSurfaceDiffuseParticleEmitters(std::vector<vmath::vec3> &surface, 
                                             std::vector<DiffuseParticleEmitter> &emitters);
     double _getWavecrestPotential(vmath::vec3 p, vmath::vec3 v);
@@ -375,9 +377,13 @@ private:
     void _advanceFoamParticles(double dt);
     void _advanceDustParticles(double dt);
     void _advanceSprayParticlesThread(int startidx, int endidx, double dt);
+    static void _advanceSprayParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _advanceBubbleParticlesThread(int startidx, int endidx, double dt);
+    static void _advanceBubbleParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _advanceFoamParticlesThread(int startidx, int endidx, double dt);
+    static void _advanceFoamParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _advanceDustParticlesThread(int startidx, int endidx, double dt);
+    static void _advanceDustParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     vmath::vec3 _resolveCollision(vmath::vec3 oldp, vmath::vec3 newp, 
                                   DiffuseParticle &dp, AABB &boundary);
     bool _resolveSprayCollision(vmath::vec3 oldp, vmath::vec3 newp,

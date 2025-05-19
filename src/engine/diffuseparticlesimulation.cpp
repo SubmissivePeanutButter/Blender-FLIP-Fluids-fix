@@ -1616,7 +1616,11 @@ void DiffuseParticleSimulation::
         }
     }
 }
+struct Temp_Struct_shrinkMaterialGridFluidThreaded {
+    DiffuseParticleSimulation* Pointer;
+    FluidMaterialGrid* mgridtemp;
 
+};
 void DiffuseParticleSimulation::_initializeMaterialGrid() {
 
     if (_mgrid.width == _isize && _mgrid.height == _jsize && _mgrid.depth == _ksize) {
@@ -1626,30 +1630,38 @@ void DiffuseParticleSimulation::_initializeMaterialGrid() {
     }
 
     size_t gridsize = _mgrid.width * _mgrid.height * _mgrid.depth;
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_initializeMaterialGridThread, this,
-                                 intervals[i], intervals[i + 1]);
-    }
+    //size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    ThreadUtils::Thread_Pool.Run_Function(_initializeMaterialGridThreaded, 0, gridsize, this);
+    ThreadUtils::Thread_Pool.Sync();
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_initializeMaterialGridThread, this,
+    //                             intervals[i], intervals[i + 1]);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    
+    //FluidMaterialGrid mgridtemp = _mgrid;
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_shrinkMaterialGridFluidThread, this,
+    //                             intervals[i], intervals[i + 1], &mgridtemp);
+    //}
 
-    FluidMaterialGrid mgridtemp = _mgrid;
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_shrinkMaterialGridFluidThread, this,
-                                 intervals[i], intervals[i + 1], &mgridtemp);
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
-
-    _mgrid = mgridtemp;
+    //_mgrid = mgridtemp;
+    Temp_Struct_shrinkMaterialGridFluidThreaded Temp_1{
+        this,
+        &_mgrid
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_shrinkMaterialGridFluidThreaded, 0, gridsize, &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 
     if (_borderingAirGrid.width == _isize && 
             _borderingAirGrid.height == _jsize && 
@@ -1675,6 +1687,21 @@ void DiffuseParticleSimulation::_initializeMaterialGridThread(int startidx, int 
     }
 }
 
+void DiffuseParticleSimulation::_initializeMaterialGridThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    DiffuseParticleSimulation* Pointer = static_cast<DiffuseParticleSimulation*>(Data);
+    int isize = Pointer->_mgrid.width;
+    int jsize = Pointer->_mgrid.height;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+        if (Pointer->_solidSDF->getDistanceAtCellCenter(g) < 0.0f) {
+            Pointer->_mgrid.setSolid(g);
+        }
+        else if (Pointer->_liquidSDF->get(g) < 0.0f) {
+            Pointer->_mgrid.setFluid(g);
+        }
+    }
+}
+
 void DiffuseParticleSimulation::_shrinkMaterialGridFluidThread(int startidx, int endidx, 
                                                                FluidMaterialGrid *mgridtemp) {
     int isize = _mgrid.width;
@@ -1692,6 +1719,26 @@ void DiffuseParticleSimulation::_shrinkMaterialGridFluidThread(int startidx, int
             if (_mgrid.isCellFluid(i, j + 1, k)) { mgridtemp->setAir(i, j + 1, k); }
             if (_mgrid.isCellFluid(i, j, k - 1)) { mgridtemp->setAir(i, j, k - 1); }
             if (_mgrid.isCellFluid(i, j, k + 1)) { mgridtemp->setAir(i, j, k + 1); }
+        }
+    }
+}
+void DiffuseParticleSimulation::_shrinkMaterialGridFluidThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    Temp_Struct_shrinkMaterialGridFluidThreaded* Temp_1 = static_cast<Temp_Struct_shrinkMaterialGridFluidThreaded*>(Data);
+    int isize = Temp_1->Pointer->_mgrid.width;
+    int jsize = Temp_1->Pointer->_mgrid.height;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+        int i = g.i;
+        int j = g.j;
+        int k = g.k;
+
+        if (Temp_1->Pointer->_mgrid.isCellAir(i, j, k)) {
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i - 1, j, k)) { Temp_1->mgridtemp->setAir(i - 1, j, k); }
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i + 1, j, k)) { Temp_1->mgridtemp->setAir(i + 1, j, k); }
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i, j - 1, k)) { Temp_1->mgridtemp->setAir(i, j - 1, k); }
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i, j + 1, k)) { Temp_1->mgridtemp->setAir(i, j + 1, k); }
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i, j, k - 1)) { Temp_1->mgridtemp->setAir(i, j, k - 1); }
+            if (Temp_1->Pointer->_mgrid.isCellFluid(i, j, k + 1)) { Temp_1->mgridtemp->setAir(i, j, k + 1); }
         }
     }
 }
@@ -2173,7 +2220,10 @@ AABB DiffuseParticleSimulation::_getBoundaryAABB() {
     domainAABB.expand(-3 * _dx - eps);
     return domainAABB;
 }
-
+struct _advanceSprayParticlesThreaded_Struct {
+    DiffuseParticleSimulation* Pointer;
+    double dt;
+};
 void DiffuseParticleSimulation::_advanceSprayParticles(double dt) {
 
     int spraycount = _getNumSprayParticles();
@@ -2181,18 +2231,24 @@ void DiffuseParticleSimulation::_advanceSprayParticles(double dt) {
         return;
     }
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_advanceSprayParticlesThread, this,
-                                 intervals[i], intervals[i + 1], dt);
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_advanceSprayParticlesThread, this,
+    //                             intervals[i], intervals[i + 1], dt);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _advanceSprayParticlesThreaded_Struct Temp_1{
+        this,
+        dt
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_advanceSprayParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void DiffuseParticleSimulation::_advanceBubbleParticles(double dt) {
@@ -2201,19 +2257,25 @@ void DiffuseParticleSimulation::_advanceBubbleParticles(double dt) {
     if (bubblecount == 0) {
         return;
     }
-
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_advanceBubbleParticlesThread, this,
-                                 intervals[i], intervals[i + 1], dt);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_advanceBubbleParticlesThread, this,
+    //                             intervals[i], intervals[i + 1], dt);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _advanceSprayParticlesThreaded_Struct Temp_1{
+        this,
+        dt
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_advanceBubbleParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void DiffuseParticleSimulation::_advanceFoamParticles(double dt) {
@@ -2223,18 +2285,24 @@ void DiffuseParticleSimulation::_advanceFoamParticles(double dt) {
         return;
     }
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_advanceFoamParticlesThread, this,
-                                 intervals[i], intervals[i + 1], dt);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_advanceFoamParticlesThread, this,
+    //                             intervals[i], intervals[i + 1], dt);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _advanceSprayParticlesThreaded_Struct Temp_1{
+        this,
+        dt
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_advanceFoamParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void DiffuseParticleSimulation::_advanceDustParticles(double dt) {
@@ -2244,18 +2312,24 @@ void DiffuseParticleSimulation::_advanceDustParticles(double dt) {
         return;
     }
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&DiffuseParticleSimulation::_advanceDustParticlesThread, this,
-                                 intervals[i], intervals[i + 1], dt);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&DiffuseParticleSimulation::_advanceDustParticlesThread, this,
+    //                             intervals[i], intervals[i + 1], dt);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _advanceSprayParticlesThreaded_Struct Temp_1{
+       this,
+       dt
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_advanceDustParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void DiffuseParticleSimulation::_advanceSprayParticlesThread(int startidx, int endidx, double dt) {
@@ -2300,6 +2374,51 @@ void DiffuseParticleSimulation::_advanceSprayParticlesThread(int startidx, int e
         atts.velocities->at(i) = nextv;
     }
 }
+void DiffuseParticleSimulation::_advanceSprayParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _advanceSprayParticlesThreaded_Struct* Temp = static_cast<_advanceSprayParticlesThreaded_Struct*>(Data);
+    DiffuseParticleSimulation* Pointer = Temp->Pointer;
+    double dt = Temp->dt;
+    AABB boundary = Pointer->_getBoundaryAABB();
+    boundary.expand(-Pointer->_solidBufferWidth * Pointer->_dx);
+
+    DiffuseParticleAttributes atts = Pointer->_getDiffuseParticleAttributes();
+
+    float deadParticleLifetime = -1e6;
+    float invdt = 1.0f / (float)dt;
+    for (int i = startidx; i < endidx; i++) {
+        DiffuseParticle dp = atts.getDiffuseParticle(i);
+        if (dp.type != DiffuseParticleType::spray) {
+            continue;
+        }
+
+        double factor = (double)dp.id / (double)(Pointer->_diffuseParticleIDLimit - 1);
+        double mind = std::max(Pointer->_sprayDragCoefficient - Pointer->_sprayDragCoefficient * Pointer->_sprayDragVarianceFactor, 0.0);
+        double maxd = Pointer->_sprayDragCoefficient + Pointer->_sprayDragCoefficient * Pointer->_sprayDragVarianceFactor;
+        double dragCoefficient = mind + (1.0 - factor) * (maxd - mind);
+
+        vmath::vec3 bodyForce = Pointer->_getGravityVector(dp.position, dp.type);
+        vmath::vec3 dragvec = -dragCoefficient * dp.velocity * (float)dt;
+        vmath::vec3 nextv = dp.velocity + bodyForce * (float)dt + dragvec;
+        vmath::vec3 nextp = dp.position + nextv * (float)dt;
+
+        vmath::vec3 resolvedPosition;
+        vmath::vec3 resolvedVelocity;
+        bool collisionFound = Pointer->_resolveSprayCollision(dp.position, nextp, dp, boundary,
+            resolvedPosition, resolvedVelocity);
+        nextp = resolvedPosition;
+        if (collisionFound) {
+            nextv = resolvedVelocity + bodyForce * (float)dt;
+        }
+
+        float maxv = (float)Pointer->_maxVelocityFactor * vmath::length(nextv);
+        if (vmath::length(nextp - dp.position) * invdt > maxv) {
+            atts.lifetimes->at(i) = deadParticleLifetime;
+        }
+
+        atts.positions->at(i) = nextp;
+        atts.velocities->at(i) = nextv;
+    }
+}
 
 void DiffuseParticleSimulation::_advanceBubbleParticlesThread(int startidx, int endidx, double dt) {
     AABB boundary = _getBoundaryAABB();
@@ -2334,6 +2453,42 @@ void DiffuseParticleSimulation::_advanceBubbleParticlesThread(int startidx, int 
         atts.velocities->at(i) = nextv;
     }
 }
+void DiffuseParticleSimulation::_advanceBubbleParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _advanceSprayParticlesThreaded_Struct* Temp = static_cast<_advanceSprayParticlesThreaded_Struct*>(Data);
+    DiffuseParticleSimulation* Pointer = Temp->Pointer;
+    double dt = Temp->dt;
+    AABB boundary = Pointer->_getBoundaryAABB();
+    boundary.expand(-Pointer->_solidBufferWidth * Pointer->_dx);
+
+    DiffuseParticleAttributes atts = Pointer->_getDiffuseParticleAttributes();
+
+    float deadParticleLifetime = -1e6;
+    float invdt = 1.0f / (float)dt;
+    for (int i = startidx; i < endidx; i++) {
+        DiffuseParticle dp = atts.getDiffuseParticle(i);
+        if (dp.type != DiffuseParticleType::bubble) {
+            continue;
+        }
+
+        vmath::vec3 bodyForce = Pointer->_getGravityVector(dp.position, dp.type);
+        vmath::vec3 vmac = Pointer->_vfield->evaluateVelocityAtPositionLinear(dp.position);
+        vmath::vec3 vbub = dp.velocity;
+        vmath::vec3 bouyancyVelocity = (float)-Pointer->_bubbleBouyancyCoefficient * bodyForce;
+        vmath::vec3 dragVelocity = (float)Pointer->_bubbleDragCoefficient * (vmac - vbub) / (float)dt;
+
+        vmath::vec3 nextv = dp.velocity + (float)dt * (bouyancyVelocity + dragVelocity);
+        vmath::vec3 nextp = dp.position + nextv * (float)dt;
+        nextp = Pointer->_resolveCollision(dp.position, nextp, dp, boundary);
+
+        float maxv = (float)Pointer->_maxVelocityFactor * vmath::length(nextv);
+        if (vmath::length(nextp - dp.position) * invdt > maxv) {
+            atts.lifetimes->at(i) = deadParticleLifetime;
+        }
+
+        atts.positions->at(i) = nextp;
+        atts.velocities->at(i) = nextv;
+    }
+}
 
 void DiffuseParticleSimulation::_advanceFoamParticlesThread(int startidx, int endidx, double dt) {
     AABB boundary = _getBoundaryAABB();
@@ -2358,6 +2513,37 @@ void DiffuseParticleSimulation::_advanceFoamParticlesThread(int startidx, int en
         if (vmath::length(nextp - dp.position) * invdt > maxv) {
             atts.lifetimes->at(i) = deadParticleLifetime;
         } 
+
+        atts.positions->at(i) = nextp;
+        atts.velocities->at(i) = nextv;
+    }
+}
+void DiffuseParticleSimulation::_advanceFoamParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _advanceSprayParticlesThreaded_Struct* Temp = static_cast<_advanceSprayParticlesThreaded_Struct*>(Data);
+    DiffuseParticleSimulation* Pointer = Temp->Pointer;
+    double dt = Temp->dt;
+    AABB boundary = Pointer->_getBoundaryAABB();
+    boundary.expand(-Pointer->_solidBufferWidth * Pointer->_dx);
+
+    DiffuseParticleAttributes atts = Pointer->_getDiffuseParticleAttributes();
+
+    float deadParticleLifetime = -1e6;
+    float invdt = 1.0f / (float)dt;
+    for (int i = startidx; i < endidx; i++) {
+        DiffuseParticle dp = atts.getDiffuseParticle(i);
+        if (dp.type != DiffuseParticleType::foam) {
+            continue;
+        }
+
+        vmath::vec3 vmac = Pointer->_vfield->evaluateVelocityAtPositionLinear(dp.position);
+        vmath::vec3 nextv = Pointer->_foamAdvectionStrength * vmac;
+        vmath::vec3 nextp = dp.position + nextv * (float)dt;
+        nextp = Pointer->_resolveCollision(dp.position, nextp, dp, boundary);
+
+        float maxv = (float)Pointer->_maxVelocityFactor * vmath::length(nextv);
+        if (vmath::length(nextp - dp.position) * invdt > maxv) {
+            atts.lifetimes->at(i) = deadParticleLifetime;
+        }
 
         atts.positions->at(i) = nextp;
         atts.velocities->at(i) = nextv;
@@ -2401,6 +2587,51 @@ void DiffuseParticleSimulation::_advanceDustParticlesThread(int startidx, int en
         if (vmath::length(nextp - dp.position) * invdt > maxv) {
             atts.lifetimes->at(i) = deadParticleLifetime;
         } 
+
+        atts.positions->at(i) = nextp;
+        atts.velocities->at(i) = nextv;
+    }
+}
+void DiffuseParticleSimulation::_advanceDustParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _advanceSprayParticlesThreaded_Struct* Temp = static_cast<_advanceSprayParticlesThreaded_Struct*>(Data);
+    DiffuseParticleSimulation* Pointer = Temp->Pointer;
+    double dt = Temp->dt;
+    AABB boundary = Pointer->_getBoundaryAABB();
+    boundary.expand(-Pointer->_solidBufferWidth * Pointer->_dx);
+
+    DiffuseParticleAttributes atts = Pointer->_getDiffuseParticleAttributes();
+
+    float deadParticleLifetime = -1e6;
+    float invdt = 1.0f / (float)dt;
+    for (int i = startidx; i < endidx; i++) {
+        DiffuseParticle dp = atts.getDiffuseParticle(i);
+        if (dp.type != DiffuseParticleType::dust) {
+            continue;
+        }
+
+        double factor = (double)dp.id / (double)(Pointer->_diffuseParticleIDLimit - 1);
+        double minb = Pointer->_dustBouyancyCoefficient - Pointer->_dustBouyancyCoefficient * Pointer->_dustBouyancyVarianceFactor;
+        double maxb = Pointer->_dustBouyancyCoefficient + Pointer->_dustBouyancyCoefficient * Pointer->_dustBouyancyVarianceFactor;
+        double buoyancyCoefficient = minb + factor * (maxb - minb);
+
+        double mind = std::max(Pointer->_dustDragCoefficient - Pointer->_dustDragCoefficient * Pointer->_dustDragVarianceFactor, 0.0);
+        double maxd = std::min(Pointer->_dustDragCoefficient + Pointer->_dustDragCoefficient * Pointer->_dustDragVarianceFactor, 1.0);
+        double dragCoefficient = mind + (1.0 - factor) * (maxd - mind);
+
+        vmath::vec3 bodyForce = Pointer->_getGravityVector(dp.position, dp.type);
+        vmath::vec3 vmac = Pointer->_vfield->evaluateVelocityAtPositionLinear(dp.position);
+        vmath::vec3 vbub = dp.velocity;
+        vmath::vec3 bouyancyVelocity = (float)-buoyancyCoefficient * bodyForce;
+        vmath::vec3 dragVelocity = (float)dragCoefficient * (vmac - vbub) / (float)dt;
+
+        vmath::vec3 nextv = dp.velocity + (float)dt * (bouyancyVelocity + dragVelocity);
+        vmath::vec3 nextp = dp.position + nextv * (float)dt;
+        nextp = Pointer->_resolveCollision(dp.position, nextp, dp, boundary);
+
+        float maxv = (float)Pointer->_maxVelocityFactor * vmath::length(nextv);
+        if (vmath::length(nextp - dp.position) * invdt > maxv) {
+            atts.lifetimes->at(i) = deadParticleLifetime;
+        }
 
         atts.positions->at(i) = nextp;
         atts.velocities->at(i) = nextv;
