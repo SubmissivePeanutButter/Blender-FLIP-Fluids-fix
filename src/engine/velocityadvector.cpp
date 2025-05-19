@@ -211,8 +211,8 @@ void VelocityAdvector::_initializeBlockGrid(BlockArray3d<ScalarData> &blockphi, 
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, _points.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _points.size(), numthreads);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _points.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&VelocityAdvector::_initializeActiveBlocksThread, this,
     //                             intervals[i], intervals[i + 1], &activeBlocks, dir);
