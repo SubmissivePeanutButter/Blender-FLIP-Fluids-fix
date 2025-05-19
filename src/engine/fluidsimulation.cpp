@@ -7287,7 +7287,14 @@ void FluidSimulation::_updateMarkerParticleColorAttributeGrid(Array3d<float> &co
     GridUtils::extrapolateGrid(&colorAttributeGridG, &colorAttributeValidGrid, _CFLConditionNumber);
     GridUtils::extrapolateGrid(&colorAttributeGridB, &colorAttributeValidGrid, _CFLConditionNumber);
 }
-
+struct _updateMarkerParticleColorAttributeMixingThreaded_Struct {
+    double dt;
+    SpatialPointGrid* pointGrid;
+    std::vector<vmath::vec3>* colors;
+    std::vector<vmath::vec3>* colorsNew;
+    std::vector<bool>* colorsNewValid;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_updateMarkerParticleColorAttributeMixing(double dt) {
     if (!_isSurfaceSourceColorAttributeMixingEnabled) {
         return;
@@ -7309,20 +7316,30 @@ void FluidSimulation::_updateMarkerParticleColorAttributeMixing(double dt) {
     std::vector<vmath::vec3> colorsNew(colors->size(), vmath::vec3(0.0f, 0.0f, 0.0f));
     std::vector<bool> colorsNewValid(colors->size(), false);
 
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, positions->size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positions->size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_updateMarkerParticleColorAttributeMixingThread, this,
-                                 intervals[i], intervals[i + 1], dt, &pointGrid,
-                                 colors, &colorsNew, &colorsNewValid);
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, positions->size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positions->size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_updateMarkerParticleColorAttributeMixingThread, this,
+    //                             intervals[i], intervals[i + 1], dt, &pointGrid,
+    //                             colors, &colorsNew, &colorsNewValid);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
-
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _updateMarkerParticleColorAttributeMixingThreaded_Struct Temp
+    {
+        dt,
+        &pointGrid,
+        colors,
+        &colorsNew,
+        &colorsNewValid,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_updateMarkerParticleColorAttributeMixingThreaded, 0, positions->size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
     for (size_t i = 0; i < colors->size(); i++) {
         if (colorsNewValid[i]) {
             colors->at(i) = colorsNew[i];
@@ -7480,6 +7497,74 @@ void FluidSimulation::_updateMarkerParticleColorAttributeMixingThread(int starti
         for (int i = startidx; i < endidx; i++) {
             GridPointReference ref(i);
             
+            refs.clear();
+            pointGrid->queryPointReferencesInsideSphere(ref, searchRadius, refs);
+
+            vmath::vec3 colorNew;
+            for (size_t ridx = 0; ridx < refs.size(); ridx++) {
+                colorNew += colors->at(refs[ridx].id);
+            }
+
+            if (refs.size() > 0) {
+                colorNew /= refs.size();
+                vmath::vec3 colorOld = colors->at(i);
+                colorsNew->at(i) = (1.0f - mixRate) * colorOld + mixRate * colorNew;
+                colorsNewValid->at(i) = true;
+            }
+        }
+
+    }
+
+}
+void FluidSimulation::_updateMarkerParticleColorAttributeMixingThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _updateMarkerParticleColorAttributeMixingThreaded_Struct* Temp = static_cast<_updateMarkerParticleColorAttributeMixingThreaded_Struct*>(Data);
+    double dt = Temp->dt;
+    SpatialPointGrid* pointGrid = Temp->pointGrid;
+    std::vector<vmath::vec3>* colors = Temp->colors;
+    std::vector<vmath::vec3>* colorsNew = Temp->colorsNew;
+    std::vector<bool>* colorsNewValid = Temp->colorsNewValid;
+    FluidSimulation* Pointer = Temp->Pointer;
+    float mixRate = std::min(Pointer->_colorAttributeMixingRate * dt, 1.0);
+    float searchRadius = Pointer->_colorAttributeMixingRadius * Pointer->_dx;
+
+    std::vector<GridPointReference> refs;
+    if (Pointer->_isMixboxEnabled) {
+        // Mixbox Blending
+        for (int i = startidx; i < endidx; i++) {
+            GridPointReference ref(i);
+
+            refs.clear();
+            pointGrid->queryPointReferencesInsideSphere(ref, searchRadius, refs);
+
+            if (refs.empty()) {
+                continue;
+            }
+
+            vmath::vec3 colorOld = colors->at(i);
+            vmath::vec3 c0 = colors->at(refs[0].id);
+            float r = c0.x;
+            float g = c0.y;
+            float b = c0.z;
+            for (size_t ridx = 1; ridx < refs.size(); ridx++) {
+                vmath::vec3 ci = colors->at(refs[ridx].id);
+                float t = 1.0f / ((float)(ridx + 1));
+                mixbox_lerp_srgb32f(r, g, b, ci.x, ci.y, ci.z, t, &r, &g, &b);
+            }
+
+            if (refs.size() > 0) {
+                mixbox_lerp_srgb32f(colorOld.x, colorOld.y, colorOld.z, r, g, b, mixRate, &r, &g, &b);
+                vmath::vec3 colorNew(r, g, b);
+                colorsNew->at(i) = colorNew;
+                colorsNewValid->at(i) = true;
+            }
+        }
+
+    }
+    else {
+        // RGB Additive Blending
+        for (int i = startidx; i < endidx; i++) {
+            GridPointReference ref(i);
+
             refs.clear();
             pointGrid->queryPointReferencesInsideSphere(ref, searchRadius, refs);
 
