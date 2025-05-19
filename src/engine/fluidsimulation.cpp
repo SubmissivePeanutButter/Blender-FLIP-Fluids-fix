@@ -7803,6 +7803,26 @@ void FluidSimulation::_advanceMarkerParticlesThread(double dt, int startidx, int
 
     _resolveMarkerParticleCollisions(startidx, endidx, *positions, *output);
 }
+struct _advanceMarkerParticlesThreaded_Struct {
+    double dt;
+    std::vector<vmath::vec3>* positions;
+    std::vector<vmath::vec3>* output;
+    FluidSimulation* Pointer;
+};
+
+void FluidSimulation::_advanceMarkerParticlesThreaded(int startidx, int endidx, void* Data, int Thread_Number)
+{
+    _advanceMarkerParticlesThreaded_Struct* Temp = static_cast<_advanceMarkerParticlesThreaded_Struct*>(Data);
+    double dt = Temp->dt;
+    std::vector<vmath::vec3>* positions = Temp->positions;
+    std::vector<vmath::vec3>* output = Temp->output;
+    FluidSimulation* Pointer = Temp->Pointer;
+    for (int i = startidx; i < endidx; i++) {
+        (*output)[i] = Pointer->_RK3(positions->at(i), dt);
+    }
+
+    Pointer->_resolveMarkerParticleCollisions(startidx, endidx, *positions, *output);
+}
 
 
 void FluidSimulation::_resolveMarkerParticleCollisions(int startidx, int endidx,
@@ -8035,20 +8055,27 @@ void FluidSimulation::_advanceMarkerParticles(double dt) {
         
         std::vector<vmath::vec3> positionsCopy = *positions;
 
-        int numCPU = ThreadUtils::getMaxThreadCount();
-        int numthreads = (int)fmin(numCPU, positionsCopy.size());
-        std::vector<std::thread> threads(numthreads);
+        //int numCPU = ThreadUtils::getMaxThreadCount();
+        //int numthreads = (int)fmin(numCPU, positionsCopy.size());
+        //std::vector<std::thread> threads(numthreads);
         std::vector<vmath::vec3> output(positionsCopy.size());
-        std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positionsCopy.size(), numthreads);
-        for (int i = 0; i < numthreads; i++) {
-            threads[i] = std::thread(&FluidSimulation::_advanceMarkerParticlesThread, this,
-                                     dt, intervals[i], intervals[i + 1], &positionsCopy, &output);
-        }
-
-        for (int i = 0; i < numthreads; i++) {
-            threads[i].join();
-        }
-
+        //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positionsCopy.size(), numthreads);
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i] = std::thread(&FluidSimulation::_advanceMarkerParticlesThread, this,
+        //                             dt, intervals[i], intervals[i + 1], &positionsCopy, &output);
+        //}
+        //
+        //for (int i = 0; i < numthreads; i++) {
+        //    threads[i].join();
+        //}
+        _advanceMarkerParticlesThreaded_Struct Temp{
+            dt,
+            &positionsCopy,
+            &output,
+            this
+        };
+        ThreadUtils::Thread_Pool.Run_Function(_advanceMarkerParticlesThreaded, 0, positionsCopy.size(), &Temp);
+        ThreadUtils::Thread_Pool.Sync();
         for (size_t i = 0; i < _markerParticles.size(); i++) {
             float distanceTravelled = vmath::length(positions->at(i) - output[i]);
             if (distanceTravelled < 1e-6) {
