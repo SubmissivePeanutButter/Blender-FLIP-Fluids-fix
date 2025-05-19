@@ -6835,6 +6835,22 @@ void FluidSimulation::_updatePICFLIPMarkerParticleVelocitiesThread(int startidx,
     }
 }
 
+void FluidSimulation::_updatePICFLIPMarkerParticleVelocitiesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    FluidSimulation* Pointer = static_cast<FluidSimulation*>(Data);
+    std::vector<vmath::vec3>* positions, * velocities;
+    Pointer->_markerParticles.getAttributeValues("POSITION", positions);
+    Pointer->_markerParticles.getAttributeValues("VELOCITY", velocities);
+
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 pos = positions->at(i);
+        vmath::vec3 vel = velocities->at(i);
+        vmath::vec3 vPIC = Pointer->_MACVelocity.evaluateVelocityAtPositionLinear(pos);
+        vmath::vec3 vFLIP = vel + vPIC - Pointer->_savedVelocityField.evaluateVelocityAtPositionLinear(pos);
+        vmath::vec3 v = (float)Pointer->_ratioPICFLIP * vPIC + (float)(1 - Pointer->_ratioPICFLIP) * vFLIP;
+        velocities->at(i) = v;
+    }
+}
+
 /*
     The APIC (Affine Particle-In-Cell) velocity transfer method was adapted from
     Doyub Kim's 'Fluid Engine Dev' repository:
@@ -6893,24 +6909,87 @@ void FluidSimulation::_updatePICAPICMarkerParticleVelocitiesThread(int startidx,
         affineValuesZ->at(i) = affineZ;
     }
 }
+void FluidSimulation::_updatePICAPICMarkerParticleVelocitiesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    FluidSimulation* Pointer = static_cast<FluidSimulation*>(Data);
+    std::vector<vmath::vec3>* positions, * velocities;
+    std::vector<vmath::vec3>* affineValuesX, * affineValuesY, * affineValuesZ;
+    Pointer->_markerParticles.getAttributeValues("POSITION", positions);
+    Pointer->_markerParticles.getAttributeValues("VELOCITY", velocities);
+    Pointer->_markerParticles.getAttributeValues("AFFINEX", affineValuesX);
+    Pointer->_markerParticles.getAttributeValues("AFFINEY", affineValuesY);
+    Pointer->_markerParticles.getAttributeValues("AFFINEZ", affineValuesZ);
+
+    int U = 0; int V = 1; int W = 2;
+
+    GridIndex indices[8];
+    vmath::vec3 weights[8];
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 pos = positions->at(i);
+
+        vmath::vec3 affineX;
+        vmath::vec3 affineY;
+        vmath::vec3 affineZ;
+
+        Pointer->_getIndicesAndGradientWeights(pos, indices, weights, U);
+        for (int gidx = 0; gidx < 8; gidx++) {
+            GridIndex g = indices[gidx];
+            if (!Pointer->_MACVelocity.isIndexInRangeU(g)) {
+                continue;
+            }
+            affineX += weights[gidx] * Pointer->_MACVelocity.U(g);
+        }
+
+        Pointer->_getIndicesAndGradientWeights(pos, indices, weights, V);
+        for (int gidx = 0; gidx < 8; gidx++) {
+            GridIndex g = indices[gidx];
+            if (!Pointer->_MACVelocity.isIndexInRangeV(g)) {
+                continue;
+            }
+            affineY += weights[gidx] * Pointer->_MACVelocity.V(g);
+        }
+
+        Pointer->_getIndicesAndGradientWeights(pos, indices, weights, W);
+        for (int gidx = 0; gidx < 8; gidx++) {
+            GridIndex g = indices[gidx];
+            if (!Pointer->_MACVelocity.isIndexInRangeW(g)) {
+                continue;
+            }
+            affineZ += weights[gidx] * Pointer->_MACVelocity.W(g);
+        }
+
+        velocities->at(i) = Pointer->_MACVelocity.evaluateVelocityAtPositionLinear(pos);
+        affineValuesX->at(i) = affineX;
+        affineValuesY->at(i) = affineY;
+        affineValuesZ->at(i) = affineZ;
+    }
+}
 
 void FluidSimulation::_updateMarkerParticleVelocitiesThread() {
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _markerParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        if (_velocityTransferMethod == VelocityTransferMethod::FLIP) {
-            threads[i] = std::thread(&FluidSimulation::_updatePICFLIPMarkerParticleVelocitiesThread, this,
-                                     intervals[i], intervals[i + 1]);
-        } else if (_velocityTransferMethod == VelocityTransferMethod::APIC) {
-            threads[i] = std::thread(&FluidSimulation::_updatePICAPICMarkerParticleVelocitiesThread, this,
-                                     intervals[i], intervals[i + 1]);
-        }
-    }
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _markerParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    if (_velocityTransferMethod == VelocityTransferMethod::FLIP) {
+    //        threads[i] = std::thread(&FluidSimulation::_updatePICFLIPMarkerParticleVelocitiesThread, this,
+    //                                 intervals[i], intervals[i + 1]);
+    //    } else if (_velocityTransferMethod == VelocityTransferMethod::APIC) {
+    //        threads[i] = std::thread(&FluidSimulation::_updatePICAPICMarkerParticleVelocitiesThread, this,
+    //                                 intervals[i], intervals[i + 1]);
+    //    }
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
+    if (_velocityTransferMethod == VelocityTransferMethod::FLIP) {
+        ThreadUtils::Thread_Pool.Run_Function(_updatePICFLIPMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this);
+        ThreadUtils::Thread_Pool.Sync();
+    }
+    else if (_velocityTransferMethod == VelocityTransferMethod::APIC) {
+        ThreadUtils::Thread_Pool.Run_Function(_updatePICAPICMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this);
+        ThreadUtils::Thread_Pool.Sync();
     }
 }
 
