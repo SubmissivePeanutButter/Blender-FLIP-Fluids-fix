@@ -6366,7 +6366,11 @@ void FluidSimulation::_constrainVelocityField(MACVelocityField &MACGrid) {
     _constrainVelocityFieldMT(MACGrid, V);
     _constrainVelocityFieldMT(MACGrid, W);
 }
-
+struct _constrainVelocityFieldThreaded_Struct {
+    MACVelocityField* vfield;
+    int dir;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_constrainVelocityFieldMT(MACVelocityField &MACGrid, int dir) {
 
     int U = 0; int V = 1; int W = 2;
@@ -6380,18 +6384,26 @@ void FluidSimulation::_constrainVelocityFieldMT(MACVelocityField &MACGrid, int d
         gridsize = _isize * _jsize * (_ksize + 1);
     }
 
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_constrainVelocityFieldThread, this,
-                                 intervals[i], intervals[i + 1], &MACGrid, dir);
-    }
+    //size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_constrainVelocityFieldThread, this,
+    //                             intervals[i], intervals[i + 1], &MACGrid, dir);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _constrainVelocityFieldThreaded_Struct Temp{
+        &MACGrid,
+        dir,
+        this
+
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_constrainVelocityFieldThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void FluidSimulation::_constrainVelocityFieldThread(int startidx, int endidx, 
@@ -6438,6 +6450,65 @@ void FluidSimulation::_constrainVelocityFieldThread(int startidx, int endidx,
             } else if (_weightGrid.W(g) < 1.0f) {
                 float f = _getFaceFrictionW(g);
                 float wface = _solidSDF.getFaceVelocityW(g);
+                float wmac = vfield->W(g);
+                float wf = f * wface + (1.0f - f) * wmac;
+                vfield->setW(g, wf);
+            }
+        }
+
+    }
+}
+void FluidSimulation::_constrainVelocityFieldThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _constrainVelocityFieldThreaded_Struct* Temp = static_cast<_constrainVelocityFieldThreaded_Struct*>(Data);
+    MACVelocityField* vfield = Temp->vfield;
+    int dir = Temp->dir;
+    FluidSimulation* Pointer = Temp->Pointer;
+    int U = 0; int V = 1; int W = 2;
+
+    if (dir == U) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize + 1, Pointer->_jsize);
+            if (Pointer->_weightGrid.U(g) == 0) {
+                vfield->setU(g, Pointer->_solidSDF.getFaceVelocityU(g));
+            }
+            else if (Pointer->_weightGrid.U(g) < 1.0f) {
+                float f = Pointer->_getFaceFrictionU(g);
+                float uface = Pointer->_solidSDF.getFaceVelocityU(g);
+                float umac = vfield->U(g);
+                float uf = f * uface + (1.0f - f) * umac;
+                vfield->setU(g, uf);
+            }
+        }
+
+    }
+    else if (dir == V) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize + 1);
+            if (Pointer->_weightGrid.V(g) == 0) {
+                vfield->setV(g, Pointer->_solidSDF.getFaceVelocityV(g));
+            }
+            else if (Pointer->_weightGrid.V(g) < 1.0f) {
+                float f = Pointer->_getFaceFrictionV(g);
+                float vface = Pointer->_solidSDF.getFaceVelocityV(g);
+                float vmac = vfield->V(g);
+                float vf = f * vface + (1.0f - f) * vmac;
+                vfield->setV(g, vf);
+            }
+        }
+
+    }
+    else if (dir == W) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+            if (Pointer->_weightGrid.W(g) == 0) {
+                vfield->setW(g, Pointer->_solidSDF.getFaceVelocityW(g));
+            }
+            else if (Pointer->_weightGrid.W(g) < 1.0f) {
+                float f = Pointer->_getFaceFrictionW(g);
+                float wface = Pointer->_solidSDF.getFaceVelocityW(g);
                 float wmac = vfield->W(g);
                 float wf = f * wface + (1.0f - f) * wmac;
                 vfield->setW(g, wf);
