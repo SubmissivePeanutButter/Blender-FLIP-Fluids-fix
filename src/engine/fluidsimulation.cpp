@@ -8101,6 +8101,13 @@ void FluidSimulation::_advanceMarkerParticles(double dt) {
     #. Update Fluid Objects
 ********************************************************************************/
 
+struct _addNewFluidCellsThreaded_Struct {
+    std::vector<GridIndex>* cells;
+    MeshLevelSet* meshSDF;
+    vmath::vec3 sdfoffset;
+    std::vector<std::vector<vmath::vec3> >* particles;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_addNewFluidCells(std::vector<GridIndex> &cells, 
                                         vmath::vec3 velocity,
                                         MeshLevelSet &meshSDF,
@@ -8110,20 +8117,28 @@ void FluidSimulation::_addNewFluidCells(std::vector<GridIndex> &cells,
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, cells.size());
-    std::vector<std::thread> threads(numthreads);
+    //std::vector<std::thread> threads(numthreads);
     std::vector<std::vector<vmath::vec3> > particleVectors(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, cells.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_addNewFluidCellsThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &cells, &meshSDF, sdfoffset, 
-                                 &(particleVectors[i]));
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
-
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, cells.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_addNewFluidCellsThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &cells, &meshSDF, sdfoffset, 
+    //                             &(particleVectors[i]));
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _addNewFluidCellsThreaded_Struct Temp{
+        &cells,
+        &meshSDF,
+        sdfoffset,
+        &particleVectors,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
     std::vector<MarkerParticle> newParticles;
     for (size_t vidx = 0; vidx < particleVectors.size(); vidx++) {
         for (size_t i = 0; i < particleVectors[vidx].size(); i++) {
@@ -8150,19 +8165,28 @@ void FluidSimulation::_addNewFluidCells(std::vector<GridIndex> &cells,
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, cells.size());
-    std::vector<std::thread> threads(numthreads);
+    //std::vector<std::thread> threads(numthreads);
     std::vector<std::vector<vmath::vec3> > particleVectors(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, cells.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_addNewFluidCellsThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &cells, &meshSDF, sdfoffset, 
-                                 &(particleVectors[i]));
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, cells.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_addNewFluidCellsThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &cells, &meshSDF, sdfoffset, 
+    //                             &(particleVectors[i]));
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _addNewFluidCellsThreaded_Struct Temp{
+        &cells,
+        &meshSDF,
+        sdfoffset,
+        &particleVectors,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 
     std::vector<MarkerParticle> newParticles;
     for (size_t vidx = 0; vidx < particleVectors.size(); vidx++) {
@@ -8334,6 +8358,50 @@ void FluidSimulation::_addNewFluidCellsThread(int startidx, int endidx,
             }
 
             if (_solidSDF.trilinearInterpolate(p) > 0) {
+                particles->push_back(p);
+            }
+        }
+    }
+}
+void FluidSimulation::_addNewFluidCellsThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _addNewFluidCellsThreaded_Struct* Temp = static_cast<_addNewFluidCellsThreaded_Struct*>(Data);
+    std::vector<GridIndex>* cells = Temp->cells;
+    MeshLevelSet* meshSDF = Temp->meshSDF;
+    vmath::vec3 sdfoffset = Temp->sdfoffset;
+    //“C makes it easy to shoot yourself in the foot; C++ makes it harder, but when you do it blows your whole leg off.”
+    std::vector<vmath::vec3>* particles = &(Temp->particles->operator[](Thread_Number));
+    FluidSimulation* Pointer = Temp->Pointer;
+
+    double q = 0.25 * Pointer->_dx;
+    double jitter = Pointer->_getMarkerParticleJitter();
+    vmath::vec3 particleOffsets[8] = {
+        vmath::vec3(-q, -q, -q),
+        vmath::vec3(q, -q, -q),
+        vmath::vec3(-q,  q, -q),
+        vmath::vec3(q,  q, -q),
+        vmath::vec3(-q, -q,  q),
+        vmath::vec3(q, -q,  q),
+        vmath::vec3(-q,  q,  q),
+        vmath::vec3(q,  q,  q)
+    };
+
+    for (int i = startidx; i < endidx; i++) {
+        GridIndex g = cells->at(i);
+        vmath::vec3 c = Grid3d::GridIndexToCellCenter(g, Pointer->_dx);
+
+        for (int oidx = 0; oidx < 8; oidx++) {
+            vmath::vec3 p = c + particleOffsets[oidx];
+
+            double d = meshSDF->trilinearInterpolate(p - sdfoffset);
+            if (d > 0) {
+                continue;
+            }
+
+            if (Pointer->_isJitterSurfaceMarkerParticlesEnabled || d < -Pointer->_dx) {
+                p = Pointer->_jitterMarkerParticlePosition(p, jitter);
+            }
+
+            if (Pointer->_solidSDF.trilinearInterpolate(p) > 0) {
                 particles->push_back(p);
             }
         }
