@@ -5433,19 +5433,19 @@ void FluidSimulation::_resolveSolidLevelSetUpdateCollisions() {
     } else {
         _nearSolidGrid.fill(false);
     }
-    
-    int numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, _markerParticles.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {//_resolveSolidLevelSetUpdateCollisionsThread is an empty function
+    //_resolveSolidLevelSetUpdateCollisionsThread is an empty function
+    //int numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, _markerParticles.size());
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&FluidSimulation::_resolveSolidLevelSetUpdateCollisionsThread, this,
     //                             intervals[i], intervals[i + 1]);
-    }
+    //}
     
-    for (int i = 0; i < numthreads; i++) {
+    //for (int i = 0; i < numthreads; i++) {
     //    threads[i].join();
-    }
+    //}
 }
 
 void FluidSimulation::_updateObstacleObjects(double) {
@@ -6036,7 +6036,10 @@ void FluidSimulation::_updateWeightGrid() {
 
     _isWeightGridUpToDate = true;
 }
-
+struct _updateWeightGridThreaded_Struct {
+    int dir;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_updateWeightGridMT(int dir) {
 
     int U = 0; int V = 1; int W = 2; int CENTER = 3;
@@ -6051,19 +6054,25 @@ void FluidSimulation::_updateWeightGridMT(int dir) {
     } else if (dir == CENTER) {
         gridsize = _isize * _jsize * _ksize;
     }
-
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_updateWeightGridThread, this,
-                                 intervals[i], intervals[i + 1], dir);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    
+    //size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_updateWeightGridThread, this,
+    //                             intervals[i], intervals[i + 1], dir);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _updateWeightGridThreaded_Struct Temp{
+        dir,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_updateWeightGridThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void FluidSimulation::_updateWeightGridThread(int startidx, int endidx, int dir) {
@@ -6103,6 +6112,53 @@ void FluidSimulation::_updateWeightGridThread(int startidx, int endidx, int dir)
             float weight = 1.0f - _solidSDF.getCellWeight(g);
             weight = _clamp(weight, 0.0f, 1.0f);
             _weightGrid.center.set(g, weight);
+        }
+
+    }
+}
+void FluidSimulation::_updateWeightGridThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _updateWeightGridThreaded_Struct* Temp = static_cast<_updateWeightGridThreaded_Struct*>(Data);
+    int dir = Temp->dir;
+    FluidSimulation* Pointer = Temp->Pointer;
+    int U = 0; int V = 1; int W = 2; int CENTER = 3;
+
+    if (dir == U) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize + 1, Pointer->_jsize);
+            float weight = 1.0f - Pointer->_solidSDF.getFaceWeightU(g);
+            weight = Pointer->_clamp(weight, 0.0f, 1.0f);
+            Pointer->_weightGrid.U.set(g, weight);
+        }
+
+    }
+    else if (dir == V) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize + 1);
+            float weight = 1.0f - Pointer->_solidSDF.getFaceWeightV(g);
+            weight = Pointer->_clamp(weight, 0.0f, 1.0f);
+            Pointer->_weightGrid.V.set(g, weight);
+        }
+
+    }
+    else if (dir == W) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+            float weight = 1.0f - Pointer->_solidSDF.getFaceWeightW(g);
+            weight = Pointer->_clamp(weight, 0.0f, 1.0f);
+            Pointer->_weightGrid.W.set(g, weight);
+        }
+
+    }
+    else if (dir == CENTER) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+            float weight = 1.0f - Pointer->_solidSDF.getCellWeight(g);
+            weight = Pointer->_clamp(weight, 0.0f, 1.0f);
+            Pointer->_weightGrid.center.set(g, weight);
         }
 
     }
