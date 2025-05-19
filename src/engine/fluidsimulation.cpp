@@ -5783,7 +5783,12 @@ void FluidSimulation::_applyForceFieldGridForces(ValidVelocityComponentGrid &ex,
     _applyForceFieldGridForcesMT(ex, dt, W);
 
 }
-
+struct _applyForceFieldGridForcesThreaded_Struct {
+    ValidVelocityComponentGrid* ex;
+    double dt;
+    int dir;
+    FluidSimulation* Pointer;
+};
 void FluidSimulation::_applyForceFieldGridForcesMT(ValidVelocityComponentGrid &ex, double dt, int dir) {
 
     int U = 0; int V = 1; int W = 2;
@@ -5797,18 +5802,26 @@ void FluidSimulation::_applyForceFieldGridForcesMT(ValidVelocityComponentGrid &e
         gridsize = _isize * _jsize * (_ksize + 1);
     }
 
-    size_t numCPU = ThreadUtils::getMaxThreadCount();
-    int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&FluidSimulation::_applyForceFieldGridForcesThread, this,
-                                 intervals[i], intervals[i + 1], &ex, dt, dir);
-    }
+    //size_t numCPU = ThreadUtils::getMaxThreadCount();
+    //int numthreads = (int)fmin(numCPU, gridsize);
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    _applyForceFieldGridForcesThreaded_Struct Temp{
+        &ex,
+        dt,
+        dir,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_applyForceFieldGridForcesThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Sync();
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&FluidSimulation::_applyForceFieldGridForcesThread, this,
+    //                             intervals[i], intervals[i + 1], &ex, dt, dir);
+    //}
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
 }
 
 void FluidSimulation::_applyForceFieldGridForcesThread(int startidx, int endidx, 
@@ -5851,6 +5864,51 @@ void FluidSimulation::_applyForceFieldGridForcesThread(int startidx, int endidx,
     }
 }
 
+void FluidSimulation::_applyForceFieldGridForcesThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _applyForceFieldGridForcesThreaded_Struct* Temp = static_cast<_applyForceFieldGridForcesThreaded_Struct*>(Data);
+    ValidVelocityComponentGrid* ex = Temp->ex;
+    double dt = Temp->dt;
+    int dir = Temp->dir;
+    FluidSimulation* Pointer = Temp->Pointer;
+    int U = 0; int V = 1; int W = 2;
+
+    if (dir == U) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize + 1, Pointer->_jsize);
+            if (!ex->validU(g)) {
+                vmath::vec3 p = Grid3d::FaceIndexToPositionU(g, Pointer->_dx);
+                float xvel = Pointer->_forceFieldGrid.evaluateForceAtPositionU(p, Pointer->_forceFieldWeightFluidParticles);
+                Pointer->_MACVelocity.addU(g, xvel * dt);
+            }
+        }
+
+    }
+    else if (dir == V) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize + 1);
+            if (!ex->validV(g)) {
+                vmath::vec3 p = Grid3d::FaceIndexToPositionV(g, Pointer->_dx);
+                float yvel = Pointer->_forceFieldGrid.evaluateForceAtPositionV(p, Pointer->_forceFieldWeightFluidParticles);
+                Pointer->_MACVelocity.addV(g, yvel * dt);
+            }
+        }
+
+    }
+    else if (dir == W) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+            if (!ex->validW(g)) {
+                vmath::vec3 p = Grid3d::FaceIndexToPositionW(g, Pointer->_dx);
+                float zvel = Pointer->_forceFieldGrid.evaluateForceAtPositionW(p, Pointer->_forceFieldWeightFluidParticles);
+                Pointer->_MACVelocity.addW(g, zvel * dt);
+            }
+        }
+
+    }
+}
 void FluidSimulation::_applyBodyForcesToVelocityField(double dt) {
     _logfile.logString(_logfile.getTime() + " BEGIN       Apply Force Fields");
 

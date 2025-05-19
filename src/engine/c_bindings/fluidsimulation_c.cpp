@@ -4603,7 +4603,7 @@ extern "C" {
                                                                            int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticlePositionDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticlePositionDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4614,7 +4614,7 @@ extern "C" {
                                                                            int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleVelocityDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleVelocityDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4625,7 +4625,7 @@ extern "C" {
                                                                           int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleAffineXDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleAffineXDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4636,7 +4636,7 @@ extern "C" {
                                                                           int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleAffineYDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleAffineYDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4647,7 +4647,7 @@ extern "C" {
                                                                           int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleAffineZDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleAffineZDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4658,7 +4658,7 @@ extern "C" {
                                                                       int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleAgeDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleAgeDataRange(start_idx, end_idx, (float*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4669,7 +4669,7 @@ extern "C" {
                                                                       int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleLifetimeDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleLifetimeDataRange(start_idx, end_idx, (float*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4680,7 +4680,7 @@ extern "C" {
                                                                       int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleColorDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleColorDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4691,7 +4691,7 @@ extern "C" {
                                                                             int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleSourceIDDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleSourceIDDataRange(start_idx, end_idx, (int*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4702,7 +4702,7 @@ extern "C" {
                                                                       int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleUIDDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleUIDDataRange(start_idx, end_idx, (int*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4713,7 +4713,7 @@ extern "C" {
                                                                             int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleViscosityDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleViscosityDataRange(start_idx, end_idx, (float*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4724,7 +4724,7 @@ extern "C" {
                                                                      int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getMarkerParticleIDDataRange(start_idx, end_idx, c_data);
+            obj->getMarkerParticleIDDataRange(start_idx, end_idx, (uint16_t*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4735,7 +4735,7 @@ extern "C" {
                                                                             int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getDiffuseParticlePositionDataRange(start_idx, end_idx, c_data);
+            obj->getDiffuseParticlePositionDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4746,7 +4746,7 @@ extern "C" {
                                                                             int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getDiffuseParticleVelocityDataRange(start_idx, end_idx, c_data);
+            obj->getDiffuseParticleVelocityDataRange(start_idx, end_idx, (vmath::vec3*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4757,7 +4757,7 @@ extern "C" {
                                                                             int start_idx, int end_idx, char *c_data, int *err) {
         *err = CBindings::SUCCESS;
         try {
-            obj->getDiffuseParticleLifetimeDataRange(start_idx, end_idx, c_data);
+            obj->getDiffuseParticleLifetimeDataRange(start_idx, end_idx, (float*)c_data);
         } catch (std::exception &ex) {
             CBindings::set_error_message(ex);
             *err = CBindings::FAIL;
@@ -4789,35 +4789,35 @@ extern "C" {
     EXPORTDLL void FluidSimulation_get_marker_particle_position_data(FluidSimulation* obj, 
                                                                      char *c_data, int *err) {
         CBindings::safe_execute_method_void_1param(
-            obj, &FluidSimulation::getMarkerParticlePositionData, c_data, err
+            obj, &FluidSimulation::getMarkerParticlePositionData, (vmath::vec3*)c_data, err
         );
     }
 
     EXPORTDLL void FluidSimulation_get_marker_particle_velocity_data(FluidSimulation* obj, 
                                                                      char *c_data, int *err) {
         CBindings::safe_execute_method_void_1param(
-            obj, &FluidSimulation::getMarkerParticleVelocityData, c_data, err
+            obj, &FluidSimulation::getMarkerParticleVelocityData, (vmath::vec3*)c_data, err
         );
     }
 
     EXPORTDLL void FluidSimulation_get_diffuse_particle_position_data(FluidSimulation* obj, 
                                                                      char *c_data, int *err) {
         CBindings::safe_execute_method_void_1param(
-            obj, &FluidSimulation::getDiffuseParticlePositionData, c_data, err
+            obj, &FluidSimulation::getDiffuseParticlePositionData, (vmath::vec3*)c_data, err
         );
     }
 
     EXPORTDLL void FluidSimulation_get_diffuse_particle_velocity_data(FluidSimulation* obj, 
                                                                      char *c_data, int *err) {
         CBindings::safe_execute_method_void_1param(
-            obj, &FluidSimulation::getDiffuseParticleVelocityData, c_data, err
+            obj, &FluidSimulation::getDiffuseParticleVelocityData, (vmath::vec3*)c_data, err
         );
     }
 
     EXPORTDLL void FluidSimulation_get_diffuse_particle_lifetime_data(FluidSimulation* obj, 
                                                                      char *c_data, int *err) {
         CBindings::safe_execute_method_void_1param(
-            obj, &FluidSimulation::getDiffuseParticleLifetimeData, c_data, err
+            obj, &FluidSimulation::getDiffuseParticleLifetimeData, (float*)c_data, err
         );
     }
 
