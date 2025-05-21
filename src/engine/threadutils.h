@@ -68,7 +68,7 @@ namespace ThreadUtils {
         int Task_Range_End;
         std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Thread_Task;
         static void Dummy_Function(int Start_Index = 0, int End_Index = 0, void* Data = nullptr, int Thread_Number = 0);
-        static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int i);
+        static void Thread_Manager_Function(ThreadUtils::Thread_Pool_Handeler* Thread_Pool_Handler, unsigned int Thread_Number);
     };
     extern Thread_Pool_Handeler Thread_Pool;
 }
