@@ -125,8 +125,8 @@ void InfluenceGrid::_updateSpread(double dt) {
     }
 
     size_t gridsize = _isize * _jsize * _ksize;
-    //size_t numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -141,7 +141,7 @@ void InfluenceGrid::_updateSpread(double dt) {
         dt,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_updateSpreadThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_updateSpreadThreaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     for (int k = 0; k < _influence.depth; k++) {

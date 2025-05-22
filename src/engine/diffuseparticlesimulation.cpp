@@ -1630,11 +1630,11 @@ void DiffuseParticleSimulation::_initializeMaterialGrid() {
     }
 
     size_t gridsize = _mgrid.width * _mgrid.height * _mgrid.depth;
-    //size_t numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    ThreadUtils::Thread_Pool.Run_Function(_initializeMaterialGridThreaded, 0, gridsize, this);
+    ThreadUtils::Thread_Pool.Run_Function(_initializeMaterialGridThreaded, 0, gridsize, this, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&DiffuseParticleSimulation::_initializeMaterialGridThread, this,
@@ -1660,7 +1660,7 @@ void DiffuseParticleSimulation::_initializeMaterialGrid() {
         this,
         &_mgrid
     };
-    ThreadUtils::Thread_Pool.Run_Function(_shrinkMaterialGridFluidThreaded, 0, gridsize, &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_shrinkMaterialGridFluidThreaded, 0, gridsize, &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     if (_borderingAirGrid.width == _isize && 
@@ -2231,8 +2231,8 @@ void DiffuseParticleSimulation::_advanceSprayParticles(double dt) {
         return;
     }
 
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -2247,7 +2247,7 @@ void DiffuseParticleSimulation::_advanceSprayParticles(double dt) {
         this,
         dt
     };
-    ThreadUtils::Thread_Pool.Run_Function(_advanceSprayParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_advanceSprayParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
@@ -2258,8 +2258,8 @@ void DiffuseParticleSimulation::_advanceBubbleParticles(double dt) {
         return;
     }
     //
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -2274,7 +2274,7 @@ void DiffuseParticleSimulation::_advanceBubbleParticles(double dt) {
         this,
         dt
     };
-    ThreadUtils::Thread_Pool.Run_Function(_advanceBubbleParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_advanceBubbleParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
@@ -2285,8 +2285,8 @@ void DiffuseParticleSimulation::_advanceFoamParticles(double dt) {
         return;
     }
 
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -2301,7 +2301,7 @@ void DiffuseParticleSimulation::_advanceFoamParticles(double dt) {
         this,
         dt
     };
-    ThreadUtils::Thread_Pool.Run_Function(_advanceFoamParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_advanceFoamParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
@@ -2312,8 +2312,8 @@ void DiffuseParticleSimulation::_advanceDustParticles(double dt) {
         return;
     }
 
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, _diffuseParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _diffuseParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -2328,7 +2328,7 @@ void DiffuseParticleSimulation::_advanceDustParticles(double dt) {
        this,
        dt
     };
-    ThreadUtils::Thread_Pool.Run_Function(_advanceDustParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_advanceDustParticlesThreaded, 0, _diffuseParticles.size(), &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 

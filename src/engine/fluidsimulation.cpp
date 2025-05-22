@@ -5334,12 +5334,13 @@ void FluidSimulation::_initializeNearSolidGridThread(int startidx, int endidx) {
     }
 }
 void FluidSimulation::initializeNearSolidGridThreaded(int Start_Index, int End_Index, void* Data, int Thread_Number) {
-    float maxd = ((FluidSimulation*)Data)->_solidLevelSetExactBand * ((FluidSimulation*)Data)->_dx;
-    int gridfactor = ((FluidSimulation*)Data)->_nearSolidGridCellSizeFactor;
+    FluidSimulation* Pointer = static_cast<FluidSimulation*>(Data);
+    float maxd = Pointer->_solidLevelSetExactBand * Pointer->_dx;
+    int gridfactor = Pointer->_nearSolidGridCellSizeFactor;
     for (int idx = Start_Index; idx < End_Index; idx++) {
-        GridIndex g = Grid3d::getUnflattenedIndex(idx, ((FluidSimulation*)Data)->_isize, ((FluidSimulation*)Data)->_jsize);
-        if (std::abs(((FluidSimulation*)Data)->_solidSDF(g)) < maxd) {
-            ((FluidSimulation*)Data)->_nearSolidGrid.set(g.i / gridfactor, g.j / gridfactor, g.k / gridfactor, true);
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+        if (std::abs(Pointer->_solidSDF(g)) < maxd) {
+            Pointer->_nearSolidGrid.set(g.i / gridfactor, g.j / gridfactor, g.k / gridfactor, true);
         }
     }
 }
@@ -5358,11 +5359,12 @@ void FluidSimulation::_updateNearSolidGrid() {
         _nearSolidGrid.fill(false);
     }
     //test 1
-   // size_t numCPU = ThreadUtils::getMaxThreadCount();
     size_t gridsize = _isize * _jsize * _ksize;
-    ThreadUtils::Thread_Pool.Run_Function(initializeNearSolidGridThreaded, 0, gridsize, this);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
+    ThreadUtils::Thread_Pool.Run_Function(initializeNearSolidGridThreaded, 0, gridsize, this, numthreads);
     ThreadUtils::Thread_Pool.Sync();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -5802,8 +5804,8 @@ void FluidSimulation::_applyForceFieldGridForcesMT(ValidVelocityComponentGrid &e
         gridsize = _isize * _jsize * (_ksize + 1);
     }
 
-    //size_t numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     _applyForceFieldGridForcesThreaded_Struct Temp{
@@ -5812,7 +5814,7 @@ void FluidSimulation::_applyForceFieldGridForcesMT(ValidVelocityComponentGrid &e
         dir,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_applyForceFieldGridForcesThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_applyForceFieldGridForcesThreaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&FluidSimulation::_applyForceFieldGridForcesThread, this,
@@ -6055,8 +6057,8 @@ void FluidSimulation::_updateWeightGridMT(int dir) {
         gridsize = _isize * _jsize * _ksize;
     }
     
-    //size_t numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -6071,7 +6073,7 @@ void FluidSimulation::_updateWeightGridMT(int dir) {
         dir,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_updateWeightGridThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_updateWeightGridThreaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
@@ -6384,8 +6386,8 @@ void FluidSimulation::_constrainVelocityFieldMT(MACVelocityField &MACGrid, int d
         gridsize = _isize * _jsize * (_ksize + 1);
     }
 
-    //size_t numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, gridsize);
+    size_t numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -6402,7 +6404,7 @@ void FluidSimulation::_constrainVelocityFieldMT(MACVelocityField &MACGrid, int d
         this
 
     };
-    ThreadUtils::Thread_Pool.Run_Function(_constrainVelocityFieldThreaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_constrainVelocityFieldThreaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
@@ -6965,8 +6967,8 @@ void FluidSimulation::_updatePICAPICMarkerParticleVelocitiesThreaded(int startid
 }
 
 void FluidSimulation::_updateMarkerParticleVelocitiesThread() {
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, _markerParticles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, _markerParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -6984,11 +6986,11 @@ void FluidSimulation::_updateMarkerParticleVelocitiesThread() {
     //}
 
     if (_velocityTransferMethod == VelocityTransferMethod::FLIP) {
-        ThreadUtils::Thread_Pool.Run_Function(_updatePICFLIPMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this);
+        ThreadUtils::Thread_Pool.Run_Function(_updatePICFLIPMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this, numthreads);
         ThreadUtils::Thread_Pool.Sync();
     }
     else if (_velocityTransferMethod == VelocityTransferMethod::APIC) {
-        ThreadUtils::Thread_Pool.Run_Function(_updatePICAPICMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this);
+        ThreadUtils::Thread_Pool.Run_Function(_updatePICAPICMarkerParticleVelocitiesThreaded, 0, _markerParticles.size(), this, numthreads);
         ThreadUtils::Thread_Pool.Sync();
     }
 }
@@ -7316,8 +7318,8 @@ void FluidSimulation::_updateMarkerParticleColorAttributeMixing(double dt) {
     std::vector<vmath::vec3> colorsNew(colors->size(), vmath::vec3(0.0f, 0.0f, 0.0f));
     std::vector<bool> colorsNewValid(colors->size(), false);
 
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, positions->size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, positions->size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positions->size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -7338,7 +7340,7 @@ void FluidSimulation::_updateMarkerParticleColorAttributeMixing(double dt) {
         &colorsNewValid,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_updateMarkerParticleColorAttributeMixingThreaded, 0, positions->size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_updateMarkerParticleColorAttributeMixingThreaded, 0, positions->size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     for (size_t i = 0; i < colors->size(); i++) {
         if (colorsNewValid[i]) {
@@ -8055,8 +8057,8 @@ void FluidSimulation::_advanceMarkerParticles(double dt) {
         
         std::vector<vmath::vec3> positionsCopy = *positions;
 
-        //int numCPU = ThreadUtils::getMaxThreadCount();
-        //int numthreads = (int)fmin(numCPU, positionsCopy.size());
+        int numCPU = ThreadUtils::getMaxThreadCount();
+        int numthreads = (int)fmin(numCPU, positionsCopy.size());
         //std::vector<std::thread> threads(numthreads);
         std::vector<vmath::vec3> output(positionsCopy.size());
         //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, positionsCopy.size(), numthreads);
@@ -8074,7 +8076,7 @@ void FluidSimulation::_advanceMarkerParticles(double dt) {
             &output,
             this
         };
-        ThreadUtils::Thread_Pool.Run_Function(_advanceMarkerParticlesThreaded, 0, positionsCopy.size(), &Temp);
+        ThreadUtils::Thread_Pool.Run_Function(_advanceMarkerParticlesThreaded, 0, positionsCopy.size(), &Temp, numthreads);
         ThreadUtils::Thread_Pool.Sync();
         for (size_t i = 0; i < _markerParticles.size(); i++) {
             float distanceTravelled = vmath::length(positions->at(i) - output[i]);
@@ -8137,7 +8139,7 @@ void FluidSimulation::_addNewFluidCells(std::vector<GridIndex> &cells,
         &particleVectors,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     std::vector<MarkerParticle> newParticles;
     for (size_t vidx = 0; vidx < particleVectors.size(); vidx++) {
@@ -8185,7 +8187,7 @@ void FluidSimulation::_addNewFluidCells(std::vector<GridIndex> &cells,
         &particleVectors,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_addNewFluidCellsThreaded, 0, cells.size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     std::vector<MarkerParticle> newParticles;
@@ -9747,10 +9749,10 @@ void FluidSimulation::_classifyFluidParticleTypes(ParticleSystem &fluidParticles
         }
     }
 
-    //int particlesPerThread = 100000;
-    //int workerThreads = (_markerParticles.size() / particlesPerThread) + 1;
-    //int numCPU = std::min(ThreadUtils::getMaxThreadCount(), workerThreads);
-    //int numthreads = (int)fmin(numCPU, _markerParticles.size());
+    int particlesPerThread = 100000;
+    int workerThreads = (_markerParticles.size() / particlesPerThread) + 1;
+    int numCPU = std::min(ThreadUtils::getMaxThreadCount(), workerThreads);
+    int numthreads = (int)fmin(numCPU, _markerParticles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _markerParticles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -9768,7 +9770,7 @@ void FluidSimulation::_classifyFluidParticleTypes(ParticleSystem &fluidParticles
         &fluidParticleTypes,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_classifyFluidParticleTypesThreaded, 0, _markerParticles.size(), &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_classifyFluidParticleTypesThreaded, 0, _markerParticles.size(), &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 

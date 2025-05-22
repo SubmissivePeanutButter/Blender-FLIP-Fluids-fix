@@ -160,6 +160,13 @@ private:
                                      BlockArray3d<ScalarData> *blockphi, 
                                      GridCountData *countdata,
                                      Direction dir);
+    struct _computeGridCountDataThreaded_Struct {
+        BlockArray3d<ScalarData>* blockphi;
+        std::vector<GridCountData>* countdata;
+        Direction dir;
+        VelocityAdvector* Pointer;
+    };
+    static void _computeGridCountDataThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _sortParticlesIntoBlocks(ParticleGridCountData &countdata, 
                                   std::vector<PointData> &sortedParticleData, 
                                   std::vector<AffineData> &sortedAffineData, 

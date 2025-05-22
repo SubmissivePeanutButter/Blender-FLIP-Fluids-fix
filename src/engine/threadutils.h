@@ -55,10 +55,11 @@ namespace ThreadUtils {
     public:
         Thread_Pool_Handeler();
         ~Thread_Pool_Handeler();
-        void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Task, int Range_Start = 0, int Range_End = 0, void* Data = nullptr);
+        void Run_Function(std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Task, int Range_Start, int Range_End, void* Dat, int Number_Of_Threads_For_Task);
         void Sync();
     private:
         unsigned int Number_Of_Threads;
+        unsigned int Number_Of_Threads_For_Current_Task;
         std::atomic_flag Flip_To_Notify_Threads_Flag;
         std::atomic_flag Exit_Flag;
         std::atomic_flag* Thread_Finished_Flag_Array;

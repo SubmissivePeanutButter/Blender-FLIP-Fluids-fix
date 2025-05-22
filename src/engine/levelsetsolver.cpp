@@ -64,8 +64,8 @@ void LevelSetSolver::reinitializeEno(Array3d<float> &inputSDF,
 
     for (int n = 0; n < numIterations; n++) {
 
-        //int numCPU = ThreadUtils::getMaxThreadCount();
-        //int numthreads = (int)fmin(numCPU, solverCells.size());
+        int numCPU = ThreadUtils::getMaxThreadCount();
+        int numthreads = (int)fmin(numCPU, solverCells.size());
         //std::vector<std::thread> threads(numthreads);
         //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
         //for (int i = 0; i < numthreads; i++) {
@@ -84,7 +84,7 @@ void LevelSetSolver::reinitializeEno(Array3d<float> &inputSDF,
             &solverCells,
             this
         };
-        ThreadUtils::Thread_Pool.Run_Function(_stepSolverThreadedEno, 0, solverCells.size(), &Temp);
+        ThreadUtils::Thread_Pool.Run_Function(_stepSolverThreadedEno, 0, solverCells.size(), &Temp, numthreads);
         ThreadUtils::Thread_Pool.Sync();
         std::swap(tempPtr, outputPtr);
     }
@@ -119,8 +119,8 @@ void LevelSetSolver::reinitializeUpwind(Array3d<float> &inputSDF,
 
     float lastMaxDiff = -1.0f;
     for (int n = 0; n < numIterations; n++) {
-        //int numCPU = ThreadUtils::getMaxThreadCount();
-        //int numthreads = (int)fmin(numCPU, solverCells.size());
+        int numCPU = ThreadUtils::getMaxThreadCount();
+        int numthreads = (int)fmin(numCPU, solverCells.size());
         //std::vector<std::thread> threads(numthreads);
         //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, solverCells.size(), numthreads);
         //for (int i = 0; i < numthreads; i++) {
@@ -139,7 +139,7 @@ void LevelSetSolver::reinitializeUpwind(Array3d<float> &inputSDF,
             &solverCells,
             this
         };
-        ThreadUtils::Thread_Pool.Run_Function(LevelSetSolver::_stepSolverThreadedUpwind, 0, solverCells.size(), &Temp);
+        ThreadUtils::Thread_Pool.Run_Function(LevelSetSolver::_stepSolverThreadedUpwind, 0, solverCells.size(), &Temp, numthreads);
         ThreadUtils::Thread_Pool.Sync();
 
         float maxDiff = 0;
@@ -403,33 +403,85 @@ void LevelSetSolver::_stepSolverThreadUpwind(int startidx, int endidx,
         tempPtr->set(g, val);
     }
 }
-void LevelSetSolver::_stepSolverThreadedUpwind(int startidx, int endidx,void* Data, int Thread_Number) {
+void LevelSetSolver::_stepSolverThreadedUpwind(int startidx, int endidx, void* Data, int Thread_Number) {
     Temp_Struct_4* Temp = static_cast<Temp_Struct_4*>(Data);
+    Array3d<float>* tempPtr = Temp->tempPtr;
+    Array3d<float>* outputPtr = Temp->outputPtr;
+    //temp
+    int x1, y1, z1, bx1, by1, bz1, x2, y2, z2, bx2, by2, bz2;
+    tempPtr->getGridDimensions(&x1, &y1, &z1);
+    outputPtr->getGridDimensions(&x2, &y2, &z2);
+
+    //
+    
+    float dx = Temp->dx;
+    float dtau = Temp->dtau;
+    std::vector<GridIndex>* solverCells = Temp->solverCells;
+    LevelSetSolver* Pointer = Temp->Pointer;
     std::array<float, 2> derx, dery, derz;
     for (int idx = startidx; idx < endidx; idx++) {
-        GridIndex g = Temp->solverCells->at(idx);
-
-        float s = Temp->Pointer->_sign(*(Temp->outputPtr), Temp->dx, g.i, g.j, g.k);
-        Temp->Pointer->_getDerivativesUpwind(Temp->outputPtr, g.i, g.j, g.k, Temp->dx, &derx, &dery, &derz);
-
-        float val = Temp->outputPtr->get(g)
-            - Temp->dtau * std::max(s, 0.0f)
-            * (std::sqrt(Temp->Pointer->_square(std::max(derx[0], 0.0f))
-                + Temp->Pointer->_square(std::min(derx[1], 0.0f))
-                + Temp->Pointer->_square(std::max(dery[0], 0.0f))
-                + Temp->Pointer->_square(std::min(dery[1], 0.0f))
-                + Temp->Pointer->_square(std::max(derz[0], 0.0f))
-                + Temp->Pointer->_square(std::min(derz[1], 0.0f))) - 1.0f)
-            - Temp->dtau * std::min(s, 0.0f)
-            * (std::sqrt(Temp->Pointer->_square(std::min(derx[0], 0.0f))
-                + Temp->Pointer->_square(std::max(derx[1], 0.0f))
-                + Temp->Pointer->_square(std::min(dery[0], 0.0f))
-                + Temp->Pointer->_square(std::max(dery[1], 0.0f))
-                + Temp->Pointer->_square(std::min(derz[0], 0.0f))
-                + Temp->Pointer->_square(std::max(derz[1], 0.0f))) - 1.0f);
-
-        Temp->tempPtr->set(g, val);
+        GridIndex g = solverCells->at(idx);
+        //temp
+        tempPtr->getGridDimensions(&bx1, &by1, &bz1);
+        outputPtr->getGridDimensions(&bx2, &by2, &bz2);
+        if ((bx1 != x1) || (by1 != y1) || (bz1 != z1)) {
+            std::cout << "Hell";
+        }
+        if ((bx2 != x2) || (by2 != y2) || (bz2 != z2)) {
+            std::cout << "Hell2";
+        }
+        //
+        float s = Pointer->_sign(*outputPtr, dx, g.i, g.j, g.k);
+        //temp
+        tempPtr->getGridDimensions(&bx1, &by1, &bz1);
+        outputPtr->getGridDimensions(&bx2, &by2, &bz2);
+        if ((bx1 != x1) || (by1 != y1) || (bz1 != z1)) {
+            std::cout << "Hell";
+        }
+        if ((bx2 != x2) || (by2 != y2) || (bz2 != z2)) {
+            std::cout << "Hell2";
+        }
+        //
+        Pointer->_getDerivativesUpwind(outputPtr, g.i, g.j, g.k, dx, &derx, &dery, &derz);
+        //temp
+        tempPtr->getGridDimensions(&bx1, &by1, &bz1);
+        outputPtr->getGridDimensions(&bx2, &by2, &bz2);
+        if ((bx1 != x1) || (by1 != y1) || (bz1 != z1)) {
+            std::cout << "Hell";
+        }
+        if ((bx2 != x2) || (by2 != y2) || (bz2 != z2)) {
+            std::cout << "Hell2";
+        }
+        //
+        float val = outputPtr->get(g)
+            - dtau * std::max(s, 0.0f)
+            * (std::sqrt(Pointer->_square(std::max(derx[0], 0.0f))
+                + Pointer->_square(std::max(dery[0], 0.0f))
+                + Pointer->_square(std::min(derx[1], 0.0f))
+                + Pointer->_square(std::min(dery[1], 0.0f))
+                + Pointer->_square(std::max(derz[0], 0.0f))
+                + Pointer->_square(std::min(derz[1], 0.0f))) - 1.0f)
+            - dtau * std::min(s, 0.0f)
+            * (std::sqrt(Pointer->_square(std::min(derx[0], 0.0f))
+                + Pointer->_square(std::max(derx[1], 0.0f))
+                + Pointer->_square(std::min(dery[0], 0.0f))
+                + Pointer->_square(std::max(dery[1], 0.0f))
+                + Pointer->_square(std::min(derz[0], 0.0f))
+                + Pointer->_square(std::max(derz[1], 0.0f))) - 1.0f);
+        //temp
+        tempPtr->getGridDimensions(&bx1, &by1, &bz1);
+        outputPtr->getGridDimensions(&bx2, &by2, &bz2);
+        if ((bx1 != x1)||(by1 != y1)||(bz1 != z1)) {
+            std::cout << "Hell";
+        }
+        if ((bx2 != x2) || (by2 != y2) || (bz2 != z2)) {
+            std::cout << "Hell2";
+        }
+        //
+        tempPtr->set(g, val);
+        
     }
+
 }
 
 void LevelSetSolver::_getDerivativesUpwind(Array3d<float> *grid,

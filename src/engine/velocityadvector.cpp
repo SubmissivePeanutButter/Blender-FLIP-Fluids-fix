@@ -225,7 +225,7 @@ void VelocityAdvector::_initializeBlockGrid(BlockArray3d<ScalarData> &blockphi, 
     Temp.activeBlocks = &activeBlocks;
     Temp.dir = dir;
     Temp.Pointer = this;
-    ThreadUtils::Thread_Pool.Run_Function(VelocityAdvector::_initializeActiveBlocksThreaded, 0, _points.size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(VelocityAdvector::_initializeActiveBlocksThreaded, 0, _points.size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     GridUtils::featherGrid26(&activeBlocks, numthreads);
@@ -275,8 +275,9 @@ void VelocityAdvector::_computeGridCountData(BlockArray3d<ScalarData> &blockphi,
                                              Direction dir) {
 
     _initializeGridCountData(blockphi, countdata);
-
     int numthreads = countdata.numthreads;
+#if 0
+    
     std::vector<std::thread> threads(numthreads);
     std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, _points.size(), numthreads);
     for (int i = 0; i < numthreads; i++) {
@@ -286,11 +287,20 @@ void VelocityAdvector::_computeGridCountData(BlockArray3d<ScalarData> &blockphi,
                                  &(countdata.threadGridCountData[i]),
                                  dir);
     }
-
+    
     for (int i = 0; i < numthreads; i++) {
         threads[i].join();
     }
-
+#else
+    _computeGridCountDataThreaded_Struct Temp{
+        &blockphi,
+        &(countdata.threadGridCountData),
+        dir,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_computeGridCountDataThreaded, 0, _points.size(), &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
+#endif
     for (int tidx = 0; tidx < countdata.numthreads; tidx++) {
         std::vector<int> *threadGridCount = &(countdata.threadGridCountData[tidx].gridCount);
         for (size_t i = 0; i < countdata.totalGridCount.size(); i++) {
@@ -357,6 +367,88 @@ void VelocityAdvector::_computeGridCountDataThread(int startidx, int endidx,
                         int blockid = blockphi->getBlockID(gi, gj, gk);
                         if (blockid != -1) {
                             countdata->gridCount[blockid]++;
+                            countdata->overlappingGridIndices.push_back(blockid);
+                            overlapCount++;
+                        }
+                    }
+                }
+            }
+
+            if (overlapCount == 0) {
+                countdata->invalidPoints[i - startidx] = true;
+            }
+            countdata->simpleGridIndices[i - startidx] = -overlapCount;
+        }
+    }
+}
+void VelocityAdvector::_computeGridCountDataThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _computeGridCountDataThreaded_Struct* Temp = static_cast<_computeGridCountDataThreaded_Struct*>(Data);
+    BlockArray3d<ScalarData>* blockphi = Temp->blockphi;
+    std::vector<GridCountData>* CountDataVector = Temp->countdata;
+    GridCountData* countdata = &((*CountDataVector)[Thread_Number]);
+    Direction dir = Temp->dir;
+    VelocityAdvector* Pointer = Temp->Pointer;
+    countdata->simpleGridIndices = std::vector<int>(endidx - startidx, -1);
+    countdata->invalidPoints = std::vector<bool>(endidx - startidx, false);
+    countdata->startidx = startidx;
+    countdata->endidx = endidx;
+
+    float eps = 1e-6;
+    float sr = Pointer->_particleRadius + eps;
+    float blockdx = Pointer->_chunkdx;
+    vmath::vec3 offset = Pointer->_getDirectionOffset(dir);
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 p = Pointer->_points[i] - offset;
+        GridIndex blockIndex = Grid3d::positionToGridIndex(p, blockdx);
+        vmath::vec3 blockPosition = Grid3d::GridIndexToPosition(blockIndex, blockdx);
+
+        if (p.x - sr > blockPosition.x &&
+            p.y - sr > blockPosition.y &&
+            p.z - sr > blockPosition.z &&
+            p.x + sr < blockPosition.x + blockdx &&
+            p.y + sr < blockPosition.y + blockdx &&
+            p.z + sr < blockPosition.z + blockdx) {
+            int blockid = blockphi->getBlockID(blockIndex);
+            countdata->simpleGridIndices[i - startidx] = blockid;
+
+            if (blockid != -1) {
+                //temp
+                try {
+                    countdata->gridCount.at(blockid)++;
+                }
+                catch (...) {
+                    std::cout << "Hell";
+                    unsigned int hell = countdata->gridCount.size();
+                    std::cout << " " << hell << " " << blockid << " .";
+                }
+                //
+                //countdata->gridCount[blockid]++;
+            }
+            else {
+                countdata->invalidPoints[i - startidx] = true;
+            }
+        }
+        else {
+            GridIndex gmin = Grid3d::positionToGridIndex(p.x - sr, p.y - sr, p.z - sr, blockdx);
+            GridIndex gmax = Grid3d::positionToGridIndex(p.x + sr, p.y + sr, p.z + sr, blockdx);
+
+            int overlapCount = 0;
+            for (int gk = gmin.k; gk <= gmax.k; gk++) {
+                for (int gj = gmin.j; gj <= gmax.j; gj++) {
+                    for (int gi = gmin.i; gi <= gmax.i; gi++) {
+                        int blockid = blockphi->getBlockID(gi, gj, gk);
+                        if (blockid != -1) {
+                            //temp
+                            try {
+                                countdata->gridCount.at(blockid)++;
+                            }
+                            catch (...) {
+                                std::cout << "Hell";
+                                unsigned int hell = countdata->gridCount.size();
+                                std::cout << " " << hell << " " << blockid << " .";
+                            }
+                            //
+                            //countdata->gridCount[blockid]++;
                             countdata->overlappingGridIndices.push_back(blockid);
                             overlapCount++;
                         }

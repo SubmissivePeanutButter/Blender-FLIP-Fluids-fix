@@ -198,7 +198,7 @@ void ParticleSheeter::_getSheetCells(std::vector<vmath::vec3> &sheetParticles,
         &sheetCells,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_getSheetCellsThreaded, 0, sheetParticles.size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_getSheetCellsThreaded, 0, sheetParticles.size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
     GridUtils::featherGrid6(&sheetCells, ThreadUtils::getMaxThreadCount());
@@ -451,8 +451,8 @@ void ParticleSheeter::_initializeSortDataValidCells(std::vector<vmath::vec3> &pa
             sortData.isize, sortData.jsize, sortData.ksize, false
             );
 
-    //int numCPU = ThreadUtils::getMaxThreadCount();
-    //int numthreads = (int)fmin(numCPU, particles.size());
+    int numCPU = ThreadUtils::getMaxThreadCount();
+    int numthreads = (int)fmin(numCPU, particles.size());
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, particles.size(), numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -468,7 +468,7 @@ void ParticleSheeter::_initializeSortDataValidCells(std::vector<vmath::vec3> &pa
         &sortData,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_initializeSortDataValidCellsThreaded, 0, particles.size(), &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_initializeSortDataValidCellsThreaded, 0, particles.size(), &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     int numValidCells = 0;

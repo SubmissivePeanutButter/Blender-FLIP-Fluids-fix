@@ -244,7 +244,7 @@ void featherGrid6(Array3d<bool> *grid, int numthreads) {
         grid,
         &tempgrid
     };
-    ThreadUtils::Thread_Pool.Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_featherGrid6Threaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i] = std::thread(&_featherGrid6Thread, grid, &tempgrid, intervals[i], intervals[i + 1]);
@@ -301,7 +301,7 @@ void featherGrid26(Array3d<bool> *grid, int numthreads) {
         &tempgrid
     };
     size_t gridsize = grid->width * grid->height * grid->depth;
-    //numthreads = (int)std::min((size_t)numthreads, gridsize);
+    numthreads = (int)std::min((size_t)numthreads, gridsize);
     //std::vector<std::thread> threads(numthreads);
     //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
     //for (int i = 0; i < numthreads; i++) {
@@ -311,7 +311,7 @@ void featherGrid26(Array3d<bool> *grid, int numthreads) {
     //for (int i = 0; i < numthreads; i++) {
     //    threads[i].join();
     //}
-    ThreadUtils::Thread_Pool.Run_Function(_featherGrid26Threaded, 0, gridsize, &Temp);
+    ThreadUtils::Thread_Pool.Run_Function(_featherGrid26Threaded, 0, gridsize, &Temp, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 

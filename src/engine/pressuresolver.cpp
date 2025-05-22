@@ -360,7 +360,7 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
         &blockstatus,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_initializeBlockStatusGridThreaded, 0, gridsize, &Temp_1);
+    ThreadUtils::Thread_Pool.Run_Function(_initializeBlockStatusGridThreaded, 0, gridsize, &Temp_1, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     /*
@@ -391,7 +391,7 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
         &_surfaceTensionClusterStatus,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_initializeCellStatusGridThreaded, 0, gridsize, &Temp_2);
+    ThreadUtils::Thread_Pool.Run_Function(_initializeCellStatusGridThreaded, 0, gridsize, &Temp_2, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     gridsize = _isize * _jsize * _ksize;
@@ -410,7 +410,7 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
         &threadResults,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_findSurfaceCellsThreaded, 0, gridsize, &Temp_3);
+    ThreadUtils::Thread_Pool.Run_Function(_findSurfaceCellsThreaded, 0, gridsize, &Temp_3, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 
     int cellcount = 0;
@@ -441,7 +441,7 @@ void PressureSolver::_initializeSurfaceTensionClusterData() {
         &_surfaceTensionClusterStatus,
         this
     };
-    ThreadUtils::Thread_Pool.Run_Function(_calculateSurfaceCellStatusThreaded, 0, surfaceCells.size(), &Temp_4);
+    ThreadUtils::Thread_Pool.Run_Function(_calculateSurfaceCellStatusThreaded, 0, surfaceCells.size(), &Temp_4, numthreads);
     ThreadUtils::Thread_Pool.Sync();
 }
 
