@@ -139,6 +139,12 @@ private:
                                     ScalarFieldData &fieldData);
     float _getMaxDistanceValue();
     void _computeScalarField(ScalarFieldData &fieldData);
+
+    struct _computeGridCountDataThreaded_Struct {
+        ScalarFieldData* fieldData;
+        std::vector<GridCountData>* countDataVector;
+        ParticleMesher* Pointer;
+    };
     void _computeGridCountData(ScalarFieldData &fieldData, 
                                ParticleGridCountData &gridCountData);
     void _initializeGridCountData(ScalarFieldData &fieldData, 
@@ -146,6 +152,7 @@ private:
     void _computeGridCountDataThread(int startidx, int endidx, 
                                      ScalarFieldData *fieldData, 
                                      GridCountData *countData);
+    static void _computeGridCountDataThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _sortParticlesIntoBlocks(ScalarFieldData &fieldData, 
                                   ParticleGridCountData &gridCountData,
                                   std::vector<vmath::vec3> &sortedParticles,

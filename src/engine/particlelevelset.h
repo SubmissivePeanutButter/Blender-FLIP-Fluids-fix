@@ -111,6 +111,7 @@ private:
     void _initializeActiveBlocksThread(int startidx, int endidx, 
                                        std::vector<vmath::vec3> *particles,
                                        Array3d<bool> *activeBlocks);
+    void _initializeActiveBlocksThreaded(int startidx, int endidx,void* Data, int Thread_Number);
     void _computeGridCountData(std::vector<vmath::vec3> &particles,
                                double radius,
                                BlockArray3d<float> &blockphi, 

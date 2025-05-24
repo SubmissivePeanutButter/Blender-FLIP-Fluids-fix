@@ -430,7 +430,7 @@ void ParticleLevelSet::_initializeBlockGrid(std::vector<vmath::vec3> &particles,
                                  intervals[i], intervals[i + 1], 
                                  &particles, &activeBlocks);
     }
-
+    
     for (int i = 0; i < numthreads; i++) {
         threads[i].join();
     }

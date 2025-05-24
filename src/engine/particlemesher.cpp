@@ -445,17 +445,24 @@ void ParticleMesher::_computeGridCountData(ScalarFieldData &fieldData,
     _initializeGridCountData(fieldData, gridCountData);
 
     int numthreads = gridCountData.numthreads;
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, fieldData.particles.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&ParticleMesher::_computeGridCountDataThread, this,
-                                 intervals[i], intervals[i + 1], &fieldData, 
-                                 &(gridCountData.threadGridCountData[i]));
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, fieldData.particles.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&ParticleMesher::_computeGridCountDataThread, this,
+    //                             intervals[i], intervals[i + 1], &fieldData, 
+    //                             &(gridCountData.threadGridCountData[i]));
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _computeGridCountDataThreaded_Struct Temp{
+        &fieldData,
+        &gridCountData.threadGridCountData,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_computeGridCountDataThreaded, 0, fieldData.particles.size(), &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     for (int tidx = 0; tidx < gridCountData.numthreads; tidx++) {
         std::vector<int> *threadGridCount = &(gridCountData.threadGridCountData[tidx].gridCount);
@@ -534,6 +541,68 @@ void ParticleMesher::_computeGridCountDataThread(int startidx, int endidx,
         }
     }
 }
+
+void ParticleMesher::_computeGridCountDataThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _computeGridCountDataThreaded_Struct* Temp = static_cast<_computeGridCountDataThreaded_Struct*>(Data);
+    ScalarFieldData* fieldData = Temp->fieldData;
+    std::vector<GridCountData>* countDataVector = Temp->countDataVector;
+    GridCountData* countData = &(*countDataVector)[Thread_Number];
+    ParticleMesher* Pointer = Temp->Pointer;
+
+    countData->simpleGridIndices = std::vector<int>(endidx - startidx, -1);
+    countData->invalidPoints = std::vector<bool>(endidx - startidx, false);
+    countData->startidx = startidx;
+    countData->endidx = endidx;
+
+    float sr = Pointer->_searchRadiusFactor * (float)Pointer->_radius;
+    float blockdx = Pointer->_blockwidth * Pointer->_subdx;
+    for (int i = startidx; i < endidx; i++) {
+        vmath::vec3 p = fieldData->particles[i];
+        GridIndex blockIndex = Grid3d::positionToGridIndex(p, blockdx);
+        vmath::vec3 blockPosition = Grid3d::GridIndexToPosition(blockIndex, blockdx);
+
+        if (p.x - sr > blockPosition.x &&
+            p.y - sr > blockPosition.y &&
+            p.z - sr > blockPosition.z &&
+            p.x + sr < blockPosition.x + blockdx &&
+            p.y + sr < blockPosition.y + blockdx &&
+            p.z + sr < blockPosition.z + blockdx) {
+            int blockid = fieldData->scalarField.getBlockID(blockIndex);
+            countData->simpleGridIndices[i - startidx] = blockid;
+
+            if (blockid != -1) {
+                countData->gridCount[blockid]++;
+            }
+            else {
+                countData->invalidPoints[i - startidx] = true;
+            }
+        }
+        else {
+            GridIndex gmin = Grid3d::positionToGridIndex(p.x - sr, p.y - sr, p.z - sr, blockdx);
+            GridIndex gmax = Grid3d::positionToGridIndex(p.x + sr, p.y + sr, p.z + sr, blockdx);
+
+            int overlapCount = 0;
+            for (int gk = gmin.k; gk <= gmax.k; gk++) {
+                for (int gj = gmin.j; gj <= gmax.j; gj++) {
+                    for (int gi = gmin.i; gi <= gmax.i; gi++) {
+                        int blockid = fieldData->scalarField.getBlockID(gi, gj, gk);
+                        if (blockid != -1) {
+                            countData->gridCount[blockid]++;
+                            countData->overlappingGridIndices.push_back(blockid);
+                            overlapCount++;
+                        }
+                    }
+                }
+            }
+
+            if (overlapCount == 0) {
+                countData->invalidPoints[i - startidx] = true;
+            }
+            countData->simpleGridIndices[i - startidx] = -overlapCount;
+        }
+    }
+}
+
 
 void ParticleMesher::_sortParticlesIntoBlocks(ScalarFieldData &fieldData, 
                                               ParticleGridCountData &gridCountData,

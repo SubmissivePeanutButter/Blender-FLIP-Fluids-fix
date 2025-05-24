@@ -931,17 +931,25 @@ void MeshLevelSet::_initializeBlockGrid(std::vector<TriangleData> &triangleData,
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, triangleData.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, triangleData.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_initializeActiveBlocksThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &triangleData, bandwidth, &activeBlocks);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, triangleData.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_initializeActiveBlocksThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &triangleData, bandwidth, &activeBlocks);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _initializeActiveBlocksThreaded_Struct Temp{
+         &triangleData,
+         bandwidth,
+         &activeBlocks,
+         this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_initializeActiveBlocksThreaded, 0, triangleData.size(), &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     for (int k = 0; k < dims.k; k++) {
         for (int j = 0; j < dims.j; j++) {
@@ -974,6 +982,31 @@ void MeshLevelSet::_initializeActiveBlocksThread(int startidx, int endidx,
         GridIndex bmax(t.gmax.i / _blockwidth, 
                        t.gmax.j / _blockwidth, 
                        t.gmax.k / _blockwidth);
+
+        for (int k = bmin.k; k <= bmax.k; k++) {
+            for (int j = bmin.j; j <= bmax.j; j++) {
+                for (int i = bmin.i; i <= bmax.i; i++) {
+                    activeBlocks->set(i, j, k, true);
+                }
+            }
+        }
+    }
+}
+
+void MeshLevelSet::_initializeActiveBlocksThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _initializeActiveBlocksThreaded_Struct* Temp = static_cast<_initializeActiveBlocksThreaded_Struct*>(Data);
+    std::vector<TriangleData>* triangleData = Temp->triangleData;
+    int bandwidth = Temp->bandwidth;
+    Array3d<bool>* activeBlocks = Temp->activeBlocks;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    for (int tidx = startidx; tidx < endidx; tidx++) {
+        TriangleData t = triangleData->at(tidx);
+        GridIndex bmin(t.gmin.i / Pointer->_blockwidth,
+            t.gmin.j / Pointer->_blockwidth,
+            t.gmin.k / Pointer->_blockwidth);
+        GridIndex bmax(t.gmax.i / Pointer->_blockwidth,
+            t.gmax.j / Pointer->_blockwidth,
+            t.gmax.k / Pointer->_blockwidth);
 
         for (int k = bmin.k; k <= bmax.k; k++) {
             for (int j = bmin.j; j <= bmax.j; j++) {

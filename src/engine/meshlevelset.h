@@ -264,6 +264,13 @@ private:
                                        std::vector<TriangleData> *triangleData, 
                                        int bandwidth,
                                        Array3d<bool> *activeBlocks);
+    struct _initializeActiveBlocksThreaded_Struct {
+        std::vector<TriangleData>* triangleData;
+        int bandwidth;
+        Array3d<bool>* activeBlocks;
+        MeshLevelSet* Pointer;
+    };
+    static void _initializeActiveBlocksThreaded(int startindex, int endindex, void* Data, int Thread_Number);
     void _computeGridCountData(std::vector<TriangleData> &triangleData, 
                                BlockArray3d<SDFData> &blockphi,
                                TriangleGridCountData &countData);
@@ -274,12 +281,14 @@ private:
                                      std::vector<TriangleData> *triangledata,
                                      BlockArray3d<SDFData> *blockphi,
                                      GridCountData *countdata);
+    static void _computeGridCountDataThreaded(int startindex, int endindex, void* Data, int Thread_Number);
     void _sortTrianglesIntoBlocks(std::vector<TriangleData> &triangleData, 
                                   TriangleGridCountData &gridCountData, 
                                   std::vector<TriangleData> &sortedTriangleData, 
                                   std::vector<int> &blockToTriangleDataIndex);
     void _computeExactBandProducerThread(BoundedBuffer<ComputeBlock> *computeBlockQueue,
                                          BoundedBuffer<ComputeBlock> *finishedComputeBlockQueue);
+    static void _computeExactBandProducerThreaded(int startindex, int endindex, void* Data, int Thread_Number);
 
     void _computeExactBandDistanceFieldSingleThreaded(int bandwidth);
 
@@ -290,6 +299,7 @@ private:
     void _computeVelocityGridsSingleThreaded();
     void _computeVelocityGridMT(bool isStatic, int dir);
     void _computeVelocityGridThread(int startidx, int endidx, bool isStatic, int dir);
+    static void _computeVelocityGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     float _getCellWeight(int i, int j, int k);
     float _pointToTriangleDistance(vmath::vec3 x0, vmath::vec3 x1, 
                                      vmath::vec3 x2, 
@@ -307,19 +317,21 @@ private:
 
     void _trilinearInterpolateSolidGridPointsThread(int startidx, int endidx, vmath::vec3 offset, double dx, 
                                                     Array3d<bool> *grid);
-
+    static void _trilinearInterpolateSolidGridPointsThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _normalizeVelocityGridThread(int startidx, int endidx, 
                                       Array3d<float> *vfield,
                                       Array3d<float> *vweight,
                                       Array3d<bool> *valid);
+    static void _normalizeVelocityGridThreaded(int startidx, int endidx, void* Data, int Thread_Number);
 
     void _calculateUnionThread(int startidx, int endidx, 
                                int triIndexOffset, int meshObjectIndexOffset, 
                                MeshLevelSet *levelset);
-
+    static void _calculateUnionThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     void _trilinearInterpolatePointsThread(int startidx, int endidx,
                                            std::vector<vmath::vec3> *points, 
                                            std::vector<float> *results);
+    static void _trilinearInterpolatePointsThreaded(int startidx, int endidx, void* Data, int Thread_Number);
     
     template<class T>
     void _trilinearInterpolateSolidPointsThread(int startidx, int endidx, 

@@ -121,40 +121,36 @@ ThreadUtils::Thread_Pool_Handeler::~Thread_Pool_Handeler() {
 	delete[] Thread_Finished_Flag_Array;
 }
 void ThreadUtils::Thread_Pool_Handeler::Run_Function(std::function<void(int Start_Index, int End_Index, void* Data, int Thread_Number)> Task, int Range_Start, int Range_End, void* Data, int Number_Of_Threads_For_Task) {
-	//handle stupidity 
-	if (Number_Of_Threads_For_Task > 0) {// }:(
-		//wait for threads finish
-		for (unsigned int i = 0; i < Number_Of_Threads; i++) {
-			Thread_Finished_Flag_Array[i].wait(false);
-			Thread_Finished_Flag_Array[i].clear();
-		}
-		//updata how mant threads to use for task
-		Number_Of_Threads_For_Current_Task = Number_Of_Threads_For_Task;
 
-		//update task
-		Thread_Task = Task;
-
-		//update task data
-		Task_Data = Data;
-
-		//update task range
-		Task_Range_Start = Range_Start;
-		Task_Range_End = Range_End;
-
-		//flip the flip flag
-		if (Flip_To_Notify_Threads_Flag.test()) {
-			Flip_To_Notify_Threads_Flag.clear();
-		}
-		else {
-			Flip_To_Notify_Threads_Flag.test_and_set();
-		}
-		Flip_To_Notify_Threads_Flag.notify_all();
+	//wait for threads finish
+	for (unsigned int i = 0; i < Number_Of_Threads; i++) {
+		Thread_Finished_Flag_Array[i].wait(false);
+		Thread_Finished_Flag_Array[i].clear();
 	}
-	else{
-		Sync();
+	//updata how mant threads to use for task
+	Number_Of_Threads_For_Current_Task = Number_Of_Threads_For_Task;
+
+	//update task
+	Thread_Task = Task;
+
+	//update task data
+	Task_Data = Data;
+
+	//update task range
+	Task_Range_Start = Range_Start;
+	Task_Range_End = Range_End;
+
+	//flip the flip flag
+	if (Flip_To_Notify_Threads_Flag.test()) {
+		Flip_To_Notify_Threads_Flag.clear();
 	}
+	else {
+		Flip_To_Notify_Threads_Flag.test_and_set();
+	}
+	Flip_To_Notify_Threads_Flag.notify_all();
 	return;
 }
+
 void ThreadUtils::Thread_Pool_Handeler::Dummy_Function(int Start_Index, int End_Index, void* Data, int Thread_Number) {
 	return;
 }
@@ -171,47 +167,52 @@ void ThreadUtils::Thread_Pool_Handeler::Thread_Manager_Function(ThreadUtils::Thr
 	bool Flag_Proxy = Thread_Pool_Handler->Flip_To_Notify_Threads_Flag.test();
 	//Thread_Number has range from 0 to number of threads -1
 	do {
-		//calculate task range
-		int Total_Tasks_To_Run = Thread_Pool_Handler->Task_Range_End - Thread_Pool_Handler->Task_Range_Start;
+		if (Thread_Pool_Handler->Number_Of_Threads_For_Current_Task > 0) {//:(
+			//calculate task range
+			int Total_Tasks_To_Run = Thread_Pool_Handler->Task_Range_End - Thread_Pool_Handler->Task_Range_Start;
 
-		//same as interval size
-		//int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads);
-		int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads_For_Current_Task);// if 0, :(
+			//same as interval size
+			//int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads);
+			int Number_Of_Tasks_Per_Thread = std::floor(Total_Tasks_To_Run / Thread_Pool_Handler->Number_Of_Threads_For_Current_Task);
 
-		//same as interval remainder
-		//int Task_Remainder = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads);
-		int Task_Remainder = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads_For_Current_Task);
+			//same as interval remainder
+			//int Task_Remainder = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads);
+			int Task_Remainder = Total_Tasks_To_Run - (Number_Of_Tasks_Per_Thread * Thread_Pool_Handler->Number_Of_Threads_For_Current_Task);
 
-		int Thread_Start_Index = Thread_Pool_Handler->Task_Range_Start + (Number_Of_Tasks_Per_Thread * Thread_Number);
+			int Thread_Start_Index = Thread_Pool_Handler->Task_Range_Start + (Number_Of_Tasks_Per_Thread * Thread_Number);
 
-		int Thread_End_Index = Thread_Start_Index + Number_Of_Tasks_Per_Thread - 1;
+			int Thread_End_Index = Thread_Start_Index + Number_Of_Tasks_Per_Thread;
+			if (Thread_Number != Thread_Pool_Handler->Number_Of_Threads_For_Current_Task) {
+				Thread_End_Index--;
+			}
 
-		//distribute remaining tasks across threads
-		if (Task_Remainder > 0) {//if less than 0, hell froze over
-			//shift tasks over
-			//use std::min to only shift by added space
-			Thread_Start_Index += std::min(Thread_Number, (unsigned int)Task_Remainder);
-			Thread_End_Index += std::min(Thread_Number, (unsigned int)Task_Remainder);
-			//shift in space for remaining tasks tasks
-			if (Thread_Number < Task_Remainder) {
-				//handle all tasks being remainders
-				if (Number_Of_Tasks_Per_Thread > 0) {//if less than 0, hell froze over again
-					Thread_End_Index++;
+			//distribute remaining tasks across threads
+			if (Task_Remainder > 0) {//if less than 0, hell froze over
+				//shift tasks over
+				//use std::min to only shift by added space
+				Thread_Start_Index += std::min(Thread_Number, (unsigned int)Task_Remainder);
+				Thread_End_Index += std::min(Thread_Number, (unsigned int)Task_Remainder);
+				//shift in space for remaining tasks tasks
+				if (Thread_Number < Task_Remainder) {
+					//handle all tasks being remainders
+					if (Number_Of_Tasks_Per_Thread > 0) {//if less than 0, hell froze over again
+						Thread_End_Index++;
+					}
 				}
 			}
-		}
-		//debug
-		////if (Thread_Number == (Thread_Pool_Handler->Number_Of_Threads - 1)) {
-		//if (Thread_Number == (Thread_Pool_Handler->Number_Of_Threads_For_Current_Task - 1)) {
-		//	std::cout << "Total_Tasks_To_Run = " << Total_Tasks_To_Run << " Number_Of_Tasks_Per_Thread = " << Number_Of_Tasks_Per_Thread << " Task_Difference = " << Task_Difference << " Thread_Start_Index = " << Thread_Start_Index << " Thread_End_Index = " << Thread_End_Index << "\n";
-		//}
-		
-		//handle having no tasks
-		if (Total_Tasks_To_Run > 0) {//if less than 0, hell should turn into a ski resort
-			//handle having more threads than threads per task
-			if (Thread_Number < Thread_Pool_Handler->Number_Of_Threads_For_Current_Task) {
-				//execute task
-				Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data, Thread_Number);
+			//debug
+			////if (Thread_Number == (Thread_Pool_Handler->Number_Of_Threads - 1)) {
+			//if (Thread_Number == (Thread_Pool_Handler->Number_Of_Threads_For_Current_Task - 1)) {
+			//	std::cout << "Total_Tasks_To_Run = " << Total_Tasks_To_Run << " Number_Of_Tasks_Per_Thread = " << Number_Of_Tasks_Per_Thread << " Task_Difference = " << Task_Difference << " Thread_Start_Index = " << Thread_Start_Index << " Thread_End_Index = " << Thread_End_Index << "\n";
+			//}
+
+			//handle having no tasks
+			if (Total_Tasks_To_Run > 0) {//if less than 0, hell should turn into a ski resort
+				//handle having more threads than threads per task
+				if (Thread_Number < Thread_Pool_Handler->Number_Of_Threads_For_Current_Task) {
+					//execute task
+					Thread_Pool_Handler->Thread_Task(Thread_Start_Index, Thread_End_Index, Thread_Pool_Handler->Task_Data, Thread_Number);
+				}
 			}
 		}
 
@@ -219,7 +220,6 @@ void ThreadUtils::Thread_Pool_Handeler::Thread_Manager_Function(ThreadUtils::Thr
 		//set flag when task is finished
 		Thread_Pool_Handler->Thread_Finished_Flag_Array[Thread_Number].test_and_set();
 		Thread_Pool_Handler->Thread_Finished_Flag_Array[Thread_Number].notify_all();
-
 		//wait for the flip flag
 		Thread_Pool_Handler->Flip_To_Notify_Threads_Flag.wait(Flag_Proxy);
 		Flag_Proxy = !Flag_Proxy;
