@@ -219,7 +219,7 @@ public:
     }
     
 private:
-
+    
     struct TriangleData {
         vmath::vec3 vertices[3];
         GridIndex gmin;
@@ -238,6 +238,13 @@ private:
         std::vector<int> overlappingGridIndices;
         int startidx = 0;
         int endidx = 0;
+    };
+
+    struct _computeGridCountDataThreaded_Struct {
+        std::vector<TriangleData>* triangledata;
+        BlockArray3d<SDFData>* blockphi;
+        std::vector<GridCountData>* Count_Data_Pointer;
+        MeshLevelSet* Pointer;
     };
 
     struct TriangleGridCountData {

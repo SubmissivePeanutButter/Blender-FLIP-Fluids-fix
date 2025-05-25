@@ -261,23 +261,34 @@ void MeshLevelSet::setFaceVelocityW(GridIndex g, float v) {
 float MeshLevelSet::trilinearInterpolate(vmath::vec3 pos) {
     return Interpolation::trilinearInterpolate(pos, _dx, _phi);
 }
-
+struct _trilinearInterpolatePointsThread_Struct {
+    std::vector<vmath::vec3>* points;
+    std::vector<float>* results;
+    MeshLevelSet* Pointer;
+};
 void MeshLevelSet::trilinearInterpolatePoints(std::vector<vmath::vec3> &points, 
                                               std::vector<float> &results) {
     results = std::vector<float>(points.size(), 0.0f);
 
     int numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, points.size());
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, points.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_trilinearInterpolatePointsThread, this,
-                                 intervals[i], intervals[i + 1], &points, &results);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, points.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_trilinearInterpolatePointsThread, this,
+    //                             intervals[i], intervals[i + 1], &points, &results);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _trilinearInterpolatePointsThread_Struct Temp{
+    &points,
+    &results,
+    this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_trilinearInterpolatePointsThreaded, 0, points.size(), &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void MeshLevelSet::_trilinearInterpolatePointsThread(int startidx, int endidx,
@@ -287,23 +298,45 @@ void MeshLevelSet::_trilinearInterpolatePointsThread(int startidx, int endidx,
         (*results)[i] = trilinearInterpolate(points->at(i));
     }
 }
-
+void MeshLevelSet::_trilinearInterpolatePointsThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _trilinearInterpolatePointsThread_Struct* Temp = static_cast<_trilinearInterpolatePointsThread_Struct*>(Data);
+    std::vector<vmath::vec3>* points = Temp->points;
+    std::vector<float>* results = Temp->results;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    for (int i = startidx; i < endidx; i++) {
+        (*results)[i] = Pointer->trilinearInterpolate(points->at(i));
+    }
+}
+struct _trilinearInterpolateSolidGridPointsThreaded_Struct {
+    vmath::vec3 offset;
+    double dx;
+    Array3d<bool>* grid;
+    MeshLevelSet* Pointer;
+};
 void MeshLevelSet::trilinearInterpolateSolidGridPoints(vmath::vec3 offset, double dx, 
                                                        Array3d<bool> &grid) {
 
     size_t gridsize = grid.width * grid.height * grid.depth;
     size_t numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_trilinearInterpolateSolidGridPointsThread, this,
-                                 intervals[i], intervals[i + 1], offset, dx, &grid);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_trilinearInterpolateSolidGridPointsThread, this,
+    //                             intervals[i], intervals[i + 1], offset, dx, &grid);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _trilinearInterpolateSolidGridPointsThreaded_Struct Temp{
+        offset,
+        dx,
+        &grid,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_trilinearInterpolateSolidGridPointsThreaded, 0, gridsize, &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void MeshLevelSet::_trilinearInterpolateSolidGridPointsThread(int startidx, int endidx, 
@@ -333,6 +366,43 @@ void MeshLevelSet::_trilinearInterpolateSolidGridPointsThread(int startidx, int 
             GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
             vmath::vec3 p = Grid3d::GridIndexToPosition(g, dx);
             if (Interpolation::trilinearInterpolate(p + offset, _dx, _phi) < 0) {
+                grid->set(g, true);
+            }
+        }
+    }
+}
+void MeshLevelSet::_trilinearInterpolateSolidGridPointsThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _trilinearInterpolateSolidGridPointsThreaded_Struct* Temp = static_cast<_trilinearInterpolateSolidGridPointsThreaded_Struct*>(Data);
+    vmath::vec3 offset = Temp->offset;
+    double dx = Temp->dx;
+    Array3d<bool>* grid = Temp->grid;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    double eps = 1e-6;
+    bool isAlignedSubd2 = fabs(2 * dx - Pointer->_dx) < eps && vmath::length(offset) < eps;
+
+    int isize = grid->width;
+    int jsize = grid->height;
+
+    if (isAlignedSubd2) {
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+
+            float d;
+            if (g.i % 2 == 0 && g.j % 2 == 0 && g.k % 2 == 0) {
+                d = Pointer->_phi(g.i >> 1, g.j >> 1, g.k >> 1);
+            }
+            else {
+                vmath::vec3 p = Grid3d::GridIndexToPosition(g, dx);
+                d = Interpolation::trilinearInterpolate(p + offset, Pointer->_dx, Pointer->_phi);
+            }
+            grid->set(g, d < 0);
+        }
+    }
+    else {
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, isize, jsize);
+            vmath::vec3 p = Grid3d::GridIndexToPosition(g, dx);
+            if (Interpolation::trilinearInterpolate(p + offset, Pointer->_dx, Pointer->_phi) < 0) {
                 grid->set(g, true);
             }
         }
@@ -599,7 +669,13 @@ void MeshLevelSet::fastCalculateSignedDistanceField(TriangleMesh &m,
         _computeVelocityGrids();
     }
 }
+struct _calculateUnionThreaded_Struct {
+    int triIndexOffset;
+    int meshObjectIndexOffset;
+    MeshLevelSet* levelset;
+    MeshLevelSet* Pointer;
 
+};
 void MeshLevelSet::calculateUnion(MeshLevelSet &levelset) {
     // Merge mesh data
     TriangleMesh *meshOther = levelset.getTriangleMesh();
@@ -623,20 +699,33 @@ void MeshLevelSet::calculateUnion(MeshLevelSet &levelset) {
     size_t gridsize = (isizeOther + 1) * (jsizeOther + 1) * (ksizeOther + 1);
     size_t numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)fmin(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_calculateUnionThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 triIndexOffset, meshObjectIndexOffset, 
-                                 &levelset);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_calculateUnionThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             triIndexOffset, meshObjectIndexOffset, 
+    //                             &levelset);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _calculateUnionThreaded_Struct Temp{
+        triIndexOffset,
+        meshObjectIndexOffset,
+        &levelset,
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_calculateUnionThreaded, 0, gridsize, &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 }
-
+struct _normalizeVelocityGridThreaded_Struct {
+    Array3d<float>* vfield;
+    Array3d<float>* vweight;
+    Array3d<bool>* valid;
+    MeshLevelSet* Pointer;
+};
 void MeshLevelSet::normalizeVelocityGrid() {
     FLUIDSIM_ASSERT(_isVelocityDataEnabled);
 
@@ -645,54 +734,78 @@ void MeshLevelSet::normalizeVelocityGrid() {
     size_t gridsize = (_isize + 1) * _jsize * _ksize;
     size_t numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)std::min(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 _velocityData.field.getArray3dU(), 
-                                 &(_velocityData.weightU),
-                                 &(validVelocities.validU)
-                                 );
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             _velocityData.field.getArray3dU(), 
+    //                             &(_velocityData.weightU),
+    //                             &(validVelocities.validU)
+    //                             );
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _normalizeVelocityGridThreaded_Struct Temp{
+        _velocityData.field.getArray3dU(),
+        &(_velocityData.weightU),
+        &(validVelocities.validU),
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_normalizeVelocityGridThreaded, 0, gridsize, &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     gridsize = _isize * (_jsize + 1) * _ksize;
     numthreads = (int)std::min(numCPU, gridsize);
-    threads = std::vector<std::thread>(numthreads);
-    intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 _velocityData.field.getArray3dV(), 
-                                 &(_velocityData.weightV),
-                                 &(validVelocities.validV)
-                                 );
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //threads = std::vector<std::thread>(numthreads);
+    //intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             _velocityData.field.getArray3dV(), 
+    //                             &(_velocityData.weightV),
+    //                             &(validVelocities.validV)
+    //                             );
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _normalizeVelocityGridThreaded_Struct Temp2{
+        _velocityData.field.getArray3dV(),
+        &(_velocityData.weightV),
+        &(validVelocities.validV),
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_normalizeVelocityGridThreaded, 0, gridsize, &Temp2, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     gridsize = _isize * _jsize * (_ksize + 1);
     numthreads = (int)std::min(numCPU, gridsize);
-    threads = std::vector<std::thread>(numthreads);
-    intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 _velocityData.field.getArray3dW(), 
-                                 &(_velocityData.weightW),
-                                 &(validVelocities.validW)
-                                 );
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //threads = std::vector<std::thread>(numthreads);
+    //intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_normalizeVelocityGridThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             _velocityData.field.getArray3dW(), 
+    //                             &(_velocityData.weightW),
+    //                             &(validVelocities.validW)
+    //                             );
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _normalizeVelocityGridThreaded_Struct Temp3{
+        _velocityData.field.getArray3dW(),
+        &(_velocityData.weightW),
+        &(validVelocities.validW),
+        this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_normalizeVelocityGridThreaded, 0, gridsize, &Temp3, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     _velocityData.field.extrapolateVelocityField(
             validVelocities, _numVelocityExtrapolationLayers
@@ -1024,19 +1137,28 @@ void MeshLevelSet::_computeGridCountData(std::vector<TriangleData> &triangledata
     _initializeGridCountData(triangledata, blockphi, countdata);
 
     int numthreads = countdata.numthreads;
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, triangledata.size(), numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_computeGridCountDataThread, this,
-                                 intervals[i], intervals[i + 1], 
-                                 &triangledata, 
-                                 &blockphi, 
-                                 &(countdata.threadGridCountData[i]));
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, triangledata.size(), numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_computeGridCountDataThread, this,
+    //                             intervals[i], intervals[i + 1], 
+    //                             &triangledata, 
+    //                             &blockphi, 
+    //                             &(countdata.threadGridCountData[i]));
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _computeGridCountDataThreaded_Struct Temp{
+        &triangledata,
+        &blockphi, 
+        &countdata.threadGridCountData,
+        this
 
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_computeGridCountDataThreaded, 0, triangledata.size(), &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 
     for (int tidx = 0; tidx < countdata.numthreads; tidx++) {
         std::vector<int> *threadGridCount = &(countdata.threadGridCountData[tidx].gridCount);
@@ -1084,6 +1206,49 @@ void MeshLevelSet::_computeGridCountDataThread(int startidx, int endidx,
             countdata->simpleGridIndices[i - startidx] = blockid;
             countdata->gridCount[blockid]++;
         } else {
+            int overlapCount = 0;
+            for (int gk = bmin.k; gk <= bmax.k; gk++) {
+                for (int gj = bmin.j; gj <= bmax.j; gj++) {
+                    for (int gi = bmin.i; gi <= bmax.i; gi++) {
+                        int blockid = blockphi->getBlockID(gi, gj, gk);
+                        if (blockid != -1) {
+                            countdata->gridCount[blockid]++;
+                            countdata->overlappingGridIndices.push_back(blockid);
+                            overlapCount++;
+                        }
+                    }
+                }
+            }
+
+            countdata->simpleGridIndices[i - startidx] = -overlapCount;
+        }
+    }
+}
+void MeshLevelSet::_computeGridCountDataThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _computeGridCountDataThreaded_Struct* Temp = static_cast<_computeGridCountDataThreaded_Struct*>(Data);
+    std::vector<TriangleData>* triangledata = Temp->triangledata;
+    BlockArray3d<SDFData>* blockphi = Temp->blockphi;
+    GridCountData* countdata = &((*Temp->Count_Data_Pointer)[Thread_Number]);
+    MeshLevelSet* Pointer = Temp->Pointer;
+    countdata->simpleGridIndices = std::vector<int>(endidx - startidx, -1);
+    countdata->startidx = startidx;
+    countdata->endidx = endidx;
+
+    for (int i = startidx; i < endidx; i++) {
+        TriangleData td = triangledata->at(i);
+        GridIndex bmin(td.gmin.i / Pointer->_blockwidth,
+            td.gmin.j / Pointer->_blockwidth,
+            td.gmin.k / Pointer->_blockwidth);
+        GridIndex bmax(td.gmax.i / Pointer->_blockwidth,
+            td.gmax.j / Pointer->_blockwidth,
+            td.gmax.k / Pointer->_blockwidth);
+
+        if (bmax.i - bmin.i == 0 && bmax.j - bmin.j == 0 && bmax.k - bmin.k == 0) {
+            int blockid = blockphi->getBlockID(bmin);
+            countdata->simpleGridIndices[i - startidx] = blockid;
+            countdata->gridCount[blockid]++;
+        }
+        else {
             int overlapCount = 0;
             for (int gk = bmin.k; gk <= bmax.k; gk++) {
                 for (int gj = bmin.j; gj <= bmax.j; gj++) {
@@ -1405,6 +1570,71 @@ void MeshLevelSet::_computeVelocityGridThread(int startidx, int endidx,
     }
 
 }
+struct _computeVelocityGridThreaded_Struct {
+    bool isStatic;
+    int dir;
+    MeshLevelSet* Pointer;
+};
+void MeshLevelSet::_computeVelocityGridThreaded(int startidx, int endidx, void* Data, int Thread_Number) {
+    _computeVelocityGridThreaded_Struct* Temp = static_cast<_computeVelocityGridThreaded_Struct*>(Data);
+    bool isStatic = Temp->isStatic;
+    int dir = Temp->dir;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    int U = 0; int V = 1; int W = 2;
+
+    if (dir == U) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize + 1, Pointer->_jsize);
+            float weight = Pointer->getFaceWeightU(g);
+            if (weight > 0.0f) {
+                vmath::vec3 v;
+                if (!isStatic) {
+                    vmath::vec3 p = Grid3d::FaceIndexToPositionU(g, Pointer->_dx);
+                    v = Pointer->getNearestVelocity(p + Pointer->_positionOffset);
+                }
+                Pointer->_velocityData.field.setU(g, weight * v.x);
+                Pointer->_velocityData.weightU.set(g, weight);
+            }
+        }
+
+    }
+    else if (dir == V) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize + 1);
+            float weight = Pointer->getFaceWeightV(g);
+            if (weight > 0.0f) {
+                vmath::vec3 v;
+                if (!isStatic) {
+                    vmath::vec3 p = Grid3d::FaceIndexToPositionV(g, Pointer->_dx);
+                    v = Pointer->getNearestVelocity(p + Pointer->_positionOffset);
+                }
+                Pointer->_velocityData.field.setV(g, weight * v.y);
+                Pointer->_velocityData.weightV.set(g, weight);
+            }
+        }
+
+    }
+    else if (dir == W) {
+
+        for (int idx = startidx; idx < endidx; idx++) {
+            GridIndex g = Grid3d::getUnflattenedIndex(idx, Pointer->_isize, Pointer->_jsize);
+            float weight = Pointer->getFaceWeightW(g);
+            if (weight > 0.0f) {
+                vmath::vec3 v;
+                if (!isStatic) {
+                    vmath::vec3 p = Grid3d::FaceIndexToPositionW(g, Pointer->_dx);
+                    v = Pointer->getNearestVelocity(p + Pointer->_positionOffset);
+                }
+                Pointer->_velocityData.field.setW(g, weight * v.z);
+                Pointer->_velocityData.weightW.set(g, weight);
+            }
+        }
+
+    }
+
+}
 
 void MeshLevelSet::_computeVelocityGridMT(bool isStatic, int dir) {
     int U = 0; int V = 1; int W = 2;
@@ -1419,16 +1649,23 @@ void MeshLevelSet::_computeVelocityGridMT(bool isStatic, int dir) {
 
     size_t numCPU = ThreadUtils::getMaxThreadCount();
     int numthreads = (int)std::min(numCPU, gridsize);
-    std::vector<std::thread> threads(numthreads);
-    std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
-    for (int i = 0; i < numthreads; i++) {
-        threads[i] = std::thread(&MeshLevelSet::_computeVelocityGridThread, this,
-                                 intervals[i], intervals[i + 1], isStatic, dir);
-    }
-
-    for (int i = 0; i < numthreads; i++) {
-        threads[i].join();
-    }
+    //std::vector<std::thread> threads(numthreads);
+    //std::vector<int> intervals = ThreadUtils::splitRangeIntoIntervals(0, gridsize, numthreads);
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i] = std::thread(&MeshLevelSet::_computeVelocityGridThread, this,
+    //                             intervals[i], intervals[i + 1], isStatic, dir);
+    //}
+    //
+    //for (int i = 0; i < numthreads; i++) {
+    //    threads[i].join();
+    //}
+    _computeVelocityGridThreaded_Struct Temp{
+    isStatic,
+    dir,
+    this
+    };
+    ThreadUtils::Thread_Pool.Run_Function(_computeVelocityGridThreaded, 0, gridsize, &Temp, numthreads);
+    ThreadUtils::Thread_Pool.Sync();
 }
 
 void MeshLevelSet::_computeVelocityGrids() {
@@ -1788,6 +2025,27 @@ void MeshLevelSet::_normalizeVelocityGridThread(int startidx, int endidx,
         vweight->set(g, 1.0f);
     }
 }
+void MeshLevelSet::_normalizeVelocityGridThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _normalizeVelocityGridThreaded_Struct* Temp = static_cast<_normalizeVelocityGridThreaded_Struct*>(Data);
+    Array3d<float>* vfield = Temp->vfield;
+    Array3d<float>* vweight = Temp->vweight;
+    Array3d<bool>* valid = Temp->valid;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    float eps = 1e-6;
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, vfield->width, vfield->height);
+
+        float u = 0.0f;
+        float uw = vweight->get(g);
+        if (uw > eps) {
+            u = vfield->get(g) / uw;
+            valid->set(g, true);
+        }
+
+        vfield->set(g, u);
+        vweight->set(g, 1.0f);
+    }
+}
 
 void MeshLevelSet::_calculateUnionThread(int startidx, int endidx, 
                                          int triIndexOffset, 
@@ -1860,6 +2118,83 @@ void MeshLevelSet::_calculateUnionThread(int startidx, int endidx,
             _velocityData.weightV.add(thisIndex, otherData->weightV(i, j, k));
             _velocityData.field.addW(thisIndex, otherData->field.W(i, j, k));
             _velocityData.weightW.add(thisIndex, otherData->weightW(i, j, k));
+        }
+    }
+}
+void MeshLevelSet::_calculateUnionThreaded(int startidx, int endidx, void* Data, int Thread_Number){
+    _calculateUnionThreaded_Struct* Temp = static_cast<_calculateUnionThreaded_Struct*>(Data);
+    int triIndexOffset = Temp->triIndexOffset;
+    int meshObjectIndexOffset = Temp->meshObjectIndexOffset;
+    MeshLevelSet* levelset = Temp->levelset;
+    MeshLevelSet* Pointer = Temp->Pointer;
+    int isizeOther, jsizeOther, ksizeOther;
+    levelset->getGridDimensions(&isizeOther, &jsizeOther, &ksizeOther);
+    GridIndex gridOffsetOther = levelset->getGridOffset();
+
+    VelocityDataGrid* otherData = levelset->getVelocityDataGrid();
+    for (int idx = startidx; idx < endidx; idx++) {
+        GridIndex g = Grid3d::getUnflattenedIndex(idx, isizeOther + 1, jsizeOther + 1);
+        int i = g.i;
+        int j = g.j;
+        int k = g.k;
+
+        GridIndex thisIndex(i + gridOffsetOther.i - Pointer->_gridOffset.i,
+            j + gridOffsetOther.j - Pointer->_gridOffset.j,
+            k + gridOffsetOther.k - Pointer->_gridOffset.k);
+
+        if (!Grid3d::isGridIndexInRange(thisIndex, Pointer->_isize + 1, Pointer->_jsize + 1, Pointer->_ksize + 1)) {
+            continue;
+        }
+
+        if (levelset->get(i, j, k) < Pointer->_phi(thisIndex)) {
+            if (fabs(levelset->get(i, j, k)) < fabs(Pointer->_phi(thisIndex))) {
+                int tidx = levelset->getClosestTriangleIndex(i, j, k);
+                int midx = levelset->getClosestMeshObjectIndex(i, j, k);
+                if (tidx != -1) {
+                    Pointer->_closestTriangles.set(thisIndex, tidx + triIndexOffset);
+
+                    if (midx != -1) {
+                        Pointer->_closestMeshObjects.set(thisIndex, midx + meshObjectIndexOffset);
+                    }
+                }
+            }
+
+            Pointer->_phi.set(thisIndex, levelset->get(i, j, k));
+        }
+
+        if (!Pointer->isVelocityDataEnabled()) {
+            continue;
+        }
+
+        bool isBorder = Grid3d::isGridIndexOnBorder(thisIndex, Pointer->_isize + 1, Pointer->_jsize + 1, Pointer->_ksize + 1) ||
+            Grid3d::isGridIndexOnBorder(i, j, k, isizeOther + 1, jsizeOther + 1, ksizeOther + 1);
+
+        if (isBorder) {
+            if (Grid3d::isGridIndexInRange(thisIndex, Pointer->_isize + 1, Pointer->_jsize, Pointer->_ksize) &&
+                Grid3d::isGridIndexInRange(i, j, k, isizeOther + 1, jsizeOther, ksizeOther)) {
+                Pointer->_velocityData.field.addU(thisIndex, otherData->field.U(i, j, k));
+                Pointer->_velocityData.weightU.add(thisIndex, otherData->weightU(i, j, k));
+            }
+
+            if (Grid3d::isGridIndexInRange(thisIndex, Pointer->_isize, Pointer->_jsize + 1, Pointer->_ksize) &&
+                Grid3d::isGridIndexInRange(i, j, k, isizeOther, jsizeOther + 1, ksizeOther)) {
+                Pointer->_velocityData.field.addV(thisIndex, otherData->field.V(i, j, k));
+                Pointer->_velocityData.weightV.add(thisIndex, otherData->weightV(i, j, k));
+            }
+
+            if (Grid3d::isGridIndexInRange(thisIndex, Pointer->_isize, Pointer->_jsize, Pointer->_ksize + 1) &&
+                Grid3d::isGridIndexInRange(i, j, k, isizeOther, jsizeOther, ksizeOther + 1)) {
+                Pointer->_velocityData.field.addW(thisIndex, otherData->field.W(i, j, k));
+                Pointer->_velocityData.weightW.add(thisIndex, otherData->weightW(i, j, k));
+            }
+        }
+        else {
+            Pointer->_velocityData.field.addU(thisIndex, otherData->field.U(i, j, k));
+            Pointer->_velocityData.weightU.add(thisIndex, otherData->weightU(i, j, k));
+            Pointer->_velocityData.field.addV(thisIndex, otherData->field.V(i, j, k));
+            Pointer->_velocityData.weightV.add(thisIndex, otherData->weightV(i, j, k));
+            Pointer->_velocityData.field.addW(thisIndex, otherData->field.W(i, j, k));
+            Pointer->_velocityData.weightW.add(thisIndex, otherData->weightW(i, j, k));
         }
     }
 }
